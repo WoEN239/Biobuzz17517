@@ -64,6 +64,10 @@ data class Ang(private val _angle: Double) {
     fun toDouble() = angle
 }
 
+fun cos(a: Ang) = kotlin.math.cos(a.angle)
+fun sin(a: Ang) = kotlin.math.sin(a.angle)
+fun tan(a: Ang) = kotlin.math.tan(a.angle)
+
 operator fun Double.plus(ang: Ang) = Ang(chop(this + ang.angle))
 operator fun Double.minus(ang: Ang) = Ang(chop(this - ang.angle))
 operator fun Double.times(ang: Ang) = Ang(chop(this * ang.angle))
