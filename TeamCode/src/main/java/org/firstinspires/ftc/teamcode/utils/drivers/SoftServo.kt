@@ -1,0 +1,110 @@
+package org.firstinspires.ftc.teamcode.utils.drivers
+
+import com.acmerobotics.dashboard.config.Config
+import com.qualcomm.robotcore.hardware.HardwareMap
+import com.qualcomm.robotcore.hardware.Servo
+import com.qualcomm.robotcore.util.ElapsedTime
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sign
+import kotlin.math.sqrt
+
+@Config
+internal object SOFT_SERVO_CONFIG {
+    @JvmField
+    var SERVO_A = 15.0
+
+    @JvmField
+    var SERVO_V_MAX = 15.0
+}
+
+class SoftServo(
+    servoName: String,
+    hardwareMap: HardwareMap,
+    private val _startPosition: Double = 0.0,
+    var a: Double = SOFT_SERVO_CONFIG.SERVO_A,
+    var vMax: Double = SOFT_SERVO_CONFIG.SERVO_V_MAX
+) {
+    private val _servo = hardwareMap.get(servoName) as Servo
+
+    private val _servoTime = ElapsedTime()
+
+    private var t2 = 0.0
+    private var t3 = 0.0
+    private var t4 = 0.0
+    private var t5 = 0.0
+    private var yAbs = 0.0
+    private var sign = 0.0
+    private var t2Pow = 0.0
+    private var y0 = 0.0
+
+    var targetPosition: Double = _startPosition
+        set(value) {
+            if (value < 0)
+                return
+
+            if (abs(value - field) < 0.002) {
+                return
+            }
+
+            y0 = currentPosition
+
+            _servoTime.reset()
+
+            yAbs = abs(currentPosition - value)
+            sign = (value - currentPosition).sign
+
+            t2 = vMax / a
+            t3 = yAbs / vMax - vMax / a + t2
+
+            if (t3 > t2)
+                t2Pow = a * t2.pow(2) / 2
+            else {
+                t4 = sqrt(yAbs / a)
+
+                t5 = t4 * 2
+            }
+
+            field = value
+        }
+
+    var currentPosition
+        get() = _servo.position
+        private set(value) {
+            _servo.position = value
+        }
+
+    fun start() {
+        currentPosition = _startPosition
+        targetPosition = _startPosition
+    }
+
+    fun update() {
+        if (t3 > t2) {
+            if (_servoTime.seconds() <= t2 + t3) {
+                currentPosition = if (_servoTime.seconds() <= t2)
+                    y0 + sign * (a * _servoTime.seconds().pow(2) / 2)
+                else if (_servoTime.seconds() <= t3)
+                    y0 + sign * (t2Pow + vMax * (_servoTime.seconds() - t2))
+                else
+                    y0 + sign * (t2Pow + vMax * (t3 - t2) + vMax * (_servoTime.seconds() - t3) - a * (_servoTime.seconds() - t3).pow(
+                        2
+                    ) / 2)
+            }
+
+            return
+        }
+
+        if (_servoTime.seconds() <= t5) {
+            currentPosition = if (_servoTime.seconds() <= t4)
+                y0 + sign * (a * _servoTime.seconds().pow(2) / 2)
+            else
+                y0 + sign * (a * t4.pow(2) / 2 + sqrt(yAbs / a) * a * (_servoTime.seconds() - t4) - a * (_servoTime.seconds() - t4).pow(
+                    2
+                ) / 2)
+        }
+    }
+
+    val atTarget
+        get() = _servoTime.seconds() > t5 || (t3 > t2 && _servoTime.seconds() > t2 + t3)
+}
