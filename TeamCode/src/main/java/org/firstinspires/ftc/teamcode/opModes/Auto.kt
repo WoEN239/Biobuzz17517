@@ -23,8 +23,6 @@ class Auto : LinearOpMode() {
 
         while (opModeIsActive()) {
             collector.updateEvent()
-
-            telemetry.update()
         }
 
         collector.stopEvent()
