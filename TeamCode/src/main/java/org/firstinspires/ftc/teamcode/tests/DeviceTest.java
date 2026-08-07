@@ -47,14 +47,14 @@ public class DeviceTest extends LinearOpMode {
         if (hardwareDevice instanceof IMU) return DeviceType.GYRO;
         if (hardwareDevice instanceof ColorSensor) return DeviceType.COLOR_SENSOR;
         if (hardwareDevice instanceof DistanceSensor) return DeviceType.DISTANCE_SENSOR;
-        if(hardwareDevice instanceof GoBildaPinpointDriver) return DeviceType.PINPOINT;
+        if (hardwareDevice instanceof GoBildaPinpointDriver) return DeviceType.PINPOINT;
         return DeviceType.NONE;
     }
 
     public static double VALUE_TO_SEND = 0;
 
     @Override
-    public void runOpMode(){
+    public void runOpMode() {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         hardwareMap.getAll(IMU.class).forEach(imu -> imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(new Quaternion()))));

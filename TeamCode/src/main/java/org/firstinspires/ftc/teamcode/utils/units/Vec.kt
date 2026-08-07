@@ -14,7 +14,7 @@ data class Vec(val x: Double, val y: Double) {
     }
 
     constructor(x: Double) : this(x, x)
-    constructor(): this(0.0, 0.0)
+    constructor() : this(0.0, 0.0)
 
     fun l() = hypot(x, y)
 

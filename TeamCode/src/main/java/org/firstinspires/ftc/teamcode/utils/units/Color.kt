@@ -59,7 +59,7 @@ data class Color(val r: Int, val g: Int, val b: Int) {
 
     fun clone() = Color(r, g, b)
 
-    constructor(): this(0, 0, 0)
+    constructor() : this(0, 0, 0)
 
     override fun hashCode(): Int {
         var result = r
