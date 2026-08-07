@@ -58,7 +58,6 @@ public class DeviceTest extends LinearOpMode {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
 
         hardwareMap.getAll(IMU.class).forEach(imu -> imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(new Quaternion()))));
-        hardwareMap.getAll(GoBildaPinpointDriver.class).forEach(GoBildaPinpointDriver::resetPosAndIMU);
 
         Object[] deviceNames = hardwareMap.getAllNames(HardwareDevice.class).toArray();
 
@@ -140,6 +139,8 @@ public class DeviceTest extends LinearOpMode {
                         telemetry.addData("x odometr", pinpoint.getEncoderX());
                         telemetry.addData("y odometr", pinpoint.getEncoderY());
                         telemetry.addData("angle", pinpoint.getHeading(UnnormalizedAngleUnit.DEGREES));
+                        telemetry.addData("x position", pinpoint.getPosX(DistanceUnit.METER));
+                        telemetry.addData("y position", pinpoint.getPosY(DistanceUnit.METER));
 
                         break;
 
