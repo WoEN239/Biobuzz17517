@@ -7,10 +7,10 @@ class EventBus {
     private val _events = hashMapOf<KClass<*>, LinkedList<(Any) -> Unit>>()
 
     @Suppress("UNCHECKED_CAST")
-    fun <T: Any> sub(event: KClass<T>, callback: (T) -> Unit){
+    fun <T : Any> sub(event: KClass<T>, callback: (T) -> Unit) {
         var list = _events[event]
 
-        if(list == null) {
+        if (list == null) {
             list = LinkedList()
             _events[event] = list
         }
@@ -18,10 +18,10 @@ class EventBus {
         list.add(callback as (Any) -> Unit)
     }
 
-    operator fun <T: Any> invoke(event: T): T{
+    operator fun <T : Any> invoke(event: T): T {
         val list = _events[event::class] ?: return event
 
-        for(i in list)
+        for (i in list)
             i.invoke(event)
 
         return event
