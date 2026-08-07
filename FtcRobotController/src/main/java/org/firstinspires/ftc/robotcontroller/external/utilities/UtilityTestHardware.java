@@ -26,6 +26,7 @@ package org.firstinspires.ftc.robotcontroller.external.utilities;
         THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.Utility;
 import com.qualcomm.robotcore.hardware.AnalogSensor;
@@ -55,6 +56,7 @@ import java.util.Set;
  */
 @Utility(name = "Test Hardware", description = "Test hardware devices in your robot configuration")
 @SuppressWarnings("unused")
+@Disabled
 public class UtilityTestHardware extends OpMode {
     protected static class Device {
         String configName;

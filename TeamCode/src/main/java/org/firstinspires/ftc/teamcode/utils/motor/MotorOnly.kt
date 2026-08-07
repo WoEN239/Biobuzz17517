@@ -2,15 +2,18 @@ package org.firstinspires.ftc.teamcode.utils.motor
 
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
+import com.qualcomm.robotcore.hardware.DcMotorImpl
 import com.qualcomm.robotcore.hardware.DcMotorSimple
 import com.qualcomm.robotcore.hardware.PIDCoefficients
 import com.qualcomm.robotcore.hardware.PIDFCoefficients
 import com.qualcomm.robotcore.hardware.configuration.typecontainers.MotorConfigurationType
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.robotcore.external.navigation.CurrentUnit
+import kotlin.math.abs
 
 class MotorOnly : DcMotorEx {
     private var _direction = DcMotorSimple.Direction.FORWARD
+    private var _oldPower = 0.0
 
     override fun getManufacturer() = _motor.manufacturer
 
@@ -35,6 +38,11 @@ class MotorOnly : DcMotorEx {
     override fun getDirection() = _direction
 
     override fun setPower(power: Double) {
+        if(abs(power - _oldPower) < 0.0001)
+            return
+
+        _oldPower = power
+
         if (_direction == DcMotorSimple.Direction.FORWARD) {
             _motor.power = power
 
@@ -44,12 +52,7 @@ class MotorOnly : DcMotorEx {
         _motor.power = -power
     }
 
-    override fun getPower(): Double {
-        if (_direction == DcMotorSimple.Direction.FORWARD)
-            return _motor.power
-
-        return -_motor.power
-    }
+    override fun getPower() = _oldPower
 
     override fun getMotorType() = _motor.motorType
 
