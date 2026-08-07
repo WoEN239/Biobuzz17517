@@ -31,7 +31,7 @@ data class Vec(val x: Double, val y: Double) {
         val sinRot = sin(rot)
 
         return Vec(
-            x * cosRot - y *sinRot,
+            x * cosRot - y * sinRot,
             x * sinRot + y * cosRot
         )
     }
