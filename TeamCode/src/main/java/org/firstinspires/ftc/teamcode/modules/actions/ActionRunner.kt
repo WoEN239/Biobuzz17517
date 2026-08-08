@@ -16,7 +16,7 @@ abstract class IAction(var nextAction: IAction?) {
         else
             nextAction?.next(action)
 
-        return action
+        return this
     }
 }
 
