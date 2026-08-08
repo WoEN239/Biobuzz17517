@@ -11,7 +11,11 @@ abstract class IAction(var nextAction: IAction?) {
     open fun isEnd(): Boolean = true
 
     fun next(action: IAction): IAction {
-        nextAction = action
+        if(nextAction == null)
+            nextAction = action
+        else
+            nextAction?.next(action)
+
         return action
     }
 }
