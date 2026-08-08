@@ -9,8 +9,10 @@ class ActionsBuilder {
             _firstAction = action
             _lastAction = action
         } else {
-            _lastAction!!.nextAction = action
-            _lastAction = action
+            if(_lastAction!!.nextAction == null) {
+                _lastAction!!.nextAction = action
+                _lastAction = action
+            }
         }
 
         return this
@@ -23,27 +25,34 @@ class ActionsBuilder {
     ): ActionsBuilder {
         val branchAction = BranchAction(condition, trueActions, falseActions)
 
-        if (_firstAction == null) {
-            _firstAction = branchAction
-            _lastAction = branchAction
-        } else {
-            if(_lastAction!!.nextAction == null) {
-                _lastAction!!.nextAction = branchAction
-                _lastAction = branchAction
-            }
-        }
+        next(branchAction)
+
+        return this
+    }
+
+    fun paralelOr(vararg actions: IAction): ActionsBuilder {
+        val paralelAction = ParallelActions(actions.toList().toTypedArray(), ParallelActions.ExitType.OR)
+
+        next(paralelAction)
+
+        return this
+    }
+
+    fun paralelAnd(vararg actions: IAction): ActionsBuilder {
+        val paralelAction = ParallelActions(actions.toList().toTypedArray(), ParallelActions.ExitType.AND)
+
+        next(paralelAction)
+
+        return this
+    }
+
+    fun paralel(vararg actions: IAction): ActionsBuilder {
+        paralelAnd(*actions)
 
         return this
     }
 
     fun build(): IAction? {
-        var currentAction = _firstAction
-
-        while (currentAction != null) {
-            currentAction.build()
-            currentAction = currentAction.nextAction
-        }
-
         return _firstAction
     }
 

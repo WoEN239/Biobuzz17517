@@ -4,7 +4,14 @@ import org.firstinspires.ftc.teamcode.collector.Collector
 import org.firstinspires.ftc.teamcode.trajectoryes.testTrajectory
 
 fun attachActionRunner(collector: Collector) {
-    var currentAction: IAction? = testTrajectory()
+    var currentAction: IAction? = testTrajectory(collector.eventBus)
+
+    var action = currentAction
+
+    while (action != null) {
+        action.build()
+        action = action.nextAction
+    }
 
     collector.startEvent += {
         currentAction?.start()
