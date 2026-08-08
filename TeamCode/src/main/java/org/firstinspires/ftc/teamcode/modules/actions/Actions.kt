@@ -7,8 +7,6 @@ abstract class IAction() {
     open fun update() {}
     open fun stop(force: Boolean) {}
 
-    open fun build() {}
-
     open fun isEnd(): Boolean = true
 
     var nextAction: IAction? = null
@@ -83,17 +81,6 @@ class ParallelActions(
                 j?.stop(true)
         }
     }
-
-    override fun build() {
-        for (i in _actions) {
-            var currentAction = i
-
-            while (currentAction != null) {
-                currentAction.build()
-                currentAction = currentAction.nextAction
-            }
-        }
-    }
 }
 
 class BranchAction(
@@ -122,22 +109,6 @@ class BranchAction(
     }
 
     override fun isEnd() = _currentAction == null
-
-    override fun build() {
-        var currentAction: IAction? = _trueActions
-
-        while (currentAction != null) {
-            currentAction.build()
-            currentAction = currentAction.nextAction
-        }
-
-        currentAction = _falseActions
-
-        while (currentAction != null) {
-            currentAction.build()
-            currentAction = currentAction.nextAction
-        }
-    }
 }
 
 class SoloAction(val action: IAction) : IAction() {
@@ -154,6 +125,4 @@ class SoloAction(val action: IAction) : IAction() {
     }
 
     override fun isEnd() = action.isEnd()
-
-    override fun build() = action.build()
 }
