@@ -32,6 +32,8 @@ class ActionsBuilder {
 
     fun paralel(vararg actions: IAction) = paralelAnd(*actions)
 
+    fun solo(action: IAction) = next(SoloAction(action))
+
     fun build(): IAction? {
         return _firstAction
     }
