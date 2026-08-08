@@ -4,7 +4,7 @@ class ActionsBuilder {
     private var _lastAction: IAction? = null
     private var _firstAction: IAction? = null
 
-    fun next(action: IAction): ActionsBuilder {
+    fun next(action: IAction?): ActionsBuilder {
         if (_firstAction == null) {
             _firstAction = action
             _lastAction = action
@@ -27,8 +27,10 @@ class ActionsBuilder {
             _firstAction = branchAction
             _lastAction = branchAction
         } else {
-            _lastAction!!.nextAction = branchAction
-            _lastAction = branchAction
+            if(_lastAction!!.nextAction == null) {
+                _lastAction!!.nextAction = branchAction
+                _lastAction = branchAction
+            }
         }
 
         return this
@@ -44,4 +46,6 @@ class ActionsBuilder {
 
         return _firstAction
     }
+
+    fun lastAction() = _lastAction
 }
