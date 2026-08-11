@@ -4,6 +4,7 @@ import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.robotcore.hardware.HardwareMap
 import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.util.ElapsedTime
+import org.firstinspires.ftc.teamcode.collector.Collector
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.sign
@@ -107,4 +108,16 @@ class SoftServo(
 
     val atTarget
         get() = _servoTime.seconds() > t5 || (t3 > t2 && _servoTime.seconds() > t2 + t3)
+
+    fun attach(collector: Collector): SoftServo {
+        collector.startEvent += {
+            start()
+        }
+
+        collector.updateEvent += {
+            update()
+        }
+
+        return this
+    }
 }

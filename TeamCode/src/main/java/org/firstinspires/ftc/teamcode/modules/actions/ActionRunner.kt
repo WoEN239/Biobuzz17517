@@ -4,25 +4,25 @@ import org.firstinspires.ftc.teamcode.collector.Collector
 import org.firstinspires.ftc.teamcode.trajectoryes.testTrajectory
 
 fun attachActionRunner(collector: Collector) {
-    var currentAction: IAction? = testTrajectory(collector.eventBus)
+    var currentAction: ActionLink? = testTrajectory(collector)
 
     collector.startEvent += {
-        currentAction?.start()
+        currentAction?.action?.start()
     }
 
     collector.updateEvent += {
         if (currentAction != null) {
-            currentAction!!.update()
+            currentAction!!.action.update()
 
-            if (currentAction!!.isEnd()) {
-                currentAction!!.stop(false)
+            if (currentAction!!.action.isEnd()) {
+                currentAction!!.action.stop(false)
                 currentAction = currentAction!!.nextAction
-                currentAction?.start()
+                currentAction?.action?.start()
             }
         }
     }
 
     collector.stopEvent += {
-        currentAction?.stop(true)
+        currentAction?.action?.stop(true)
     }
 }

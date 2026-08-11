@@ -2,17 +2,15 @@ package org.firstinspires.ftc.teamcode.modules.actions
 
 import com.qualcomm.robotcore.util.ElapsedTime
 
-abstract class IAction() {
-    open fun start() {}
-    open fun update() {}
-    open fun stop(force: Boolean) {}
+interface IAction {
+    fun start() {}
+    fun update() {}
+    fun stop(force: Boolean) {}
 
-    open fun isEnd(): Boolean = true
-
-    var nextAction: IAction? = null
+    fun isEnd(): Boolean = true
 }
 
-class WaitAction(private val _time: Double) : IAction() {
+class WaitAction(private val _time: Double) : IAction {
     val timer = ElapsedTime()
 
     override fun start() {
@@ -23,24 +21,25 @@ class WaitAction(private val _time: Double) : IAction() {
 }
 
 class ParallelActions(
-    private val _actions: Array<IAction?>,
+    private val _actions: List<ActionLink?>,
     private val _exitType: ExitType = ExitType.AND
-) : IAction() {
-    private var _actionsClone: Array<IAction?>? = null
+) : IAction {
+    private var _actionsClone = mutableListOf<ActionLink?>()
 
     enum class ExitType {
         AND, OR
     }
 
     override fun update() {
-        for (i in _actionsClone!!.indices) {
-            if (_actionsClone!![i] != null) {
-                _actionsClone!![i]!!.update()
+        for (i in _actionsClone.indices) {
+            if (_actionsClone[i] != null) {
+                val action = _actionsClone[i]!!.action
+                action.update()
 
-                if (_actionsClone!![i]!!.isEnd()) {
-                    _actionsClone!![i]!!.stop(false)
-                    _actionsClone!![i] = _actionsClone!![i]!!.nextAction
-                    _actionsClone!![i]?.start()
+                if (action.isEnd()) {
+                    action.stop(false)
+                    _actionsClone[i] = _actionsClone[i]!!.nextAction
+                    _actionsClone[i]?.action?.start()
                 }
             }
         }
@@ -48,17 +47,17 @@ class ParallelActions(
 
     override fun isEnd(): Boolean {
         if (_exitType == ExitType.AND) {
-            for (i in _actionsClone!!) {
+            for (i in _actionsClone) {
                 if (i != null)
                     return false
             }
 
             return true
         } else {
-            for (i in _actionsClone!!) {
+            for (i in _actionsClone) {
                 if (i == null) {
-                    for (j in _actionsClone!!)
-                        j?.stop(true)
+                    for (j in _actionsClone)
+                        j?.action?.stop(true)
 
                     return true
                 }
@@ -69,60 +68,45 @@ class ParallelActions(
     }
 
     override fun start() {
-        _actionsClone = _actions.clone()
+        _actionsClone = _actions.toMutableList()
 
-        for (i in _actionsClone!!)
-            i?.start()
+        for (i in _actionsClone)
+            i?.action?.start()
     }
 
     override fun stop(force: Boolean) {
         if (force) {
-            for (j in _actionsClone!!)
-                j?.stop(true)
+            for (j in _actionsClone)
+                j?.action?.stop(true)
         }
     }
 }
 
 class BranchAction(
     private val _condition: () -> Boolean,
-    private val _trueActions: IAction,
-    private val _falseActions: IAction? = null
-) : IAction() {
-    private var _currentAction: IAction? = null
+    private val _trueActions: ActionLink,
+    private val _falseActions: ActionLink? = null
+) : IAction {
+    private var _currentAction: ActionLink? = null
 
     override fun start() {
         _currentAction = if (_condition()) _trueActions else _falseActions
 
-        _currentAction?.start()
+        _currentAction?.action?.start()
     }
 
     override fun update() {
         if (_currentAction != null) {
-            _currentAction!!.update()
+            val action = _currentAction!!.action
+            action.update()
 
-            if (_currentAction!!.isEnd()) {
-                _currentAction!!.stop(false)
+            if (action.isEnd()) {
+                action.stop(false)
                 _currentAction = _currentAction!!.nextAction
-                _currentAction?.start()
+                _currentAction?.action?.start()
             }
         }
     }
 
     override fun isEnd() = _currentAction == null
-}
-
-class SoloAction(val action: IAction) : IAction() {
-    override fun start() {
-        action.start()
-    }
-
-    override fun stop(force: Boolean) {
-        action.stop(force)
-    }
-
-    override fun update() {
-        action.update()
-    }
-
-    override fun isEnd() = action.isEnd()
 }

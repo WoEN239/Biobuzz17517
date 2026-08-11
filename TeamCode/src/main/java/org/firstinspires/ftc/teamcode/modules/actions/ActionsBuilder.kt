@@ -1,17 +1,23 @@
 package org.firstinspires.ftc.teamcode.modules.actions
 
-class ActionsBuilder {
-    private var _lastAction: IAction? = null
-    private var _firstAction: IAction? = null
+class ActionLink(val action: IAction) {
+    var nextAction: ActionLink? = null
+}
 
-    fun next(action: IAction? = null): ActionsBuilder {
+class ActionsBuilder {
+    private var _lastAction: ActionLink? = null
+    private var _firstAction: ActionLink? = null
+
+    fun next(action: IAction) = next(ActionLink(action))
+
+    fun next(link: ActionLink?): ActionsBuilder {
         if (_firstAction == null) {
-            _firstAction = action
-            _lastAction = action
+            _firstAction = link
+            _lastAction = link
         } else {
             if (_lastAction!!.nextAction == null) {
-                _lastAction!!.nextAction = action
-                _lastAction = action
+                _lastAction!!.nextAction = link
+                _lastAction = link
             }
         }
 
@@ -22,25 +28,50 @@ class ActionsBuilder {
         condition: () -> Boolean,
         trueActions: IAction,
         falseActions: IAction? = null
+    ) = branch(
+        condition,
+        ActionLink(trueActions),
+        if (falseActions == null) null else ActionLink(falseActions)
+    )
+
+    fun branch(
+        condition: () -> Boolean,
+        trueActions: ActionLink,
+        falseActions: ActionLink? = null
     ) = next(BranchAction(condition, trueActions, falseActions))
 
+    fun paralelOr(vararg actions: ActionLink?) =
+        next(ParallelActions(actions.toList(), ParallelActions.ExitType.OR))
+
     fun paralelOr(vararg actions: IAction?) =
-        next(ParallelActions(actions.toList().toTypedArray(), ParallelActions.ExitType.OR))
+        next(
+            ParallelActions(
+                actions.map { if (it == null) null else ActionLink(it) },
+                ParallelActions.ExitType.OR
+            )
+        )
+
+    fun paralelAnd(vararg actions: ActionLink?) =
+        next(ParallelActions(actions.toList(), ParallelActions.ExitType.AND))
 
     fun paralelAnd(vararg actions: IAction?) =
-        next(ParallelActions(actions.toList().toTypedArray(), ParallelActions.ExitType.AND))
+        next(
+            ParallelActions(
+                actions.map { if (it == null) null else ActionLink(it) },
+                ParallelActions.ExitType.AND
+            )
+        )
 
+    fun paralel(vararg actions: ActionLink?) = paralelAnd(*actions)
     fun paralel(vararg actions: IAction?) = paralelAnd(*actions)
 
-    fun solo(action: IAction) = next(SoloAction(action))
-
-    fun run(action: () -> Unit) = next(object : IAction() {
+    fun run(action: () -> Unit) = next(object : IAction {
         override fun start() = action()
     })
 
-    fun build(): IAction? {
+    fun build(): ActionLink? {
         return _firstAction
     }
 
-    fun lastAction() = _lastAction
+    fun last() = _lastAction
 }
