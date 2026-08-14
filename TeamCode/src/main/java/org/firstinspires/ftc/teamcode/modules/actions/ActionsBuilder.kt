@@ -69,9 +69,8 @@ class ActionsBuilder {
         override fun start() = action()
     })
 
-    fun build(): ActionLink? {
-        return _firstAction
-    }
+    fun build() = first()
 
     fun last() = _lastAction
+    fun first() = _firstAction
 }
