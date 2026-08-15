@@ -58,11 +58,12 @@ class Collector {
 
         updateEvent += {
             telemetry.addData("ups", 1.0 / deltaTime.seconds())
+            deltaTime.reset()
         }
 
         attachOdometry(this)
 
-        if(runMode == RunMode.AUTO)
+        if (runMode == RunMode.AUTO)
             attachActionRunner(this)
     }
 }

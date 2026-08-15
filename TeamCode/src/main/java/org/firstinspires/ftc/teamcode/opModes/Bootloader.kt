@@ -12,6 +12,7 @@ import org.firstinspires.ftc.ftccommon.internal.manualcontrol.parameters.ImuPara
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil
 import org.firstinspires.ftc.teamcode.collector.GameColor
 import org.firstinspires.ftc.teamcode.collector.Settings
+import org.firstinspires.ftc.teamcode.collector.StartOrientation
 
 @TeleOp
 class Bootloader : LinearOpMode() {
@@ -31,8 +32,9 @@ class Bootloader : LinearOpMode() {
         val telemetry = MultipleTelemetry(telemetry, FtcDashboard.getInstance().telemetry)
 
         var isOdometryReseted = false
-        var selectedGameColor = Settings.color.ordinal
-        val gameColors = GameColor.entries
+
+        var selectedGameOrientation = Settings.orientation.ordinal
+        val orientations = StartOrientation.entries
 
         OpModeManagerImpl.getOpModeManagerOfActivity(AppUtil.getInstance().activity)
             .startActiveOpMode()
@@ -48,23 +50,25 @@ class Bootloader : LinearOpMode() {
             }
 
             if (gamepad1.dpadUpWasPressed()) {
-                selectedGameColor++
-                selectedGameColor %= gameColors.size
+                selectedGameOrientation++
+                selectedGameOrientation %= orientations.size
             }
 
             if (gamepad1.dpadDownWasPressed()) {
-                selectedGameColor--
+                selectedGameOrientation--
 
-                if (selectedGameColor < 0)
-                    selectedGameColor = gameColors.lastIndex
+                if (selectedGameOrientation < 0)
+                    selectedGameOrientation = orientations.lastIndex
             }
 
-            telemetry.addLine("selected game color ${gameColors[selectedGameColor]}")
+            telemetry.addLine("selected game orientation ${orientations[selectedGameOrientation]}")
 
             if (isOdometryReseted)
                 telemetry.addLine("odometry and imu reseted")
 
             telemetry.update()
         }
+
+        Settings.orientation = orientations[selectedGameOrientation]
     }
 }

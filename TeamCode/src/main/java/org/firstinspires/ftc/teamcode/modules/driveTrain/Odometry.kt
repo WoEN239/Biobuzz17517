@@ -10,8 +10,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D
 import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit
 import org.firstinspires.ftc.teamcode.collector.Collector
+import org.firstinspires.ftc.teamcode.collector.GameColor
+import org.firstinspires.ftc.teamcode.collector.Settings
+import org.firstinspires.ftc.teamcode.modules.utils.GamepadListener
 import org.firstinspires.ftc.teamcode.utils.ExponentialFilter
 import org.firstinspires.ftc.teamcode.utils.units.Ang
 import org.firstinspires.ftc.teamcode.utils.units.Color
@@ -138,7 +142,7 @@ fun attachOdometry(collector: Collector) {
             atomicOdometry.pos.vec,
             ODOMETRY_CONFIG.ROBOT_SIZE,
             atomicOdometry.pos.angle(),
-            Color.ORANGE
+            if (Settings.orientation.color == GameColor.RED) Color.RED else Color.BLUE
         )
         collector.telemetry.addData("robot pos", atomicOdometry.pos)
 
