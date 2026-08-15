@@ -15,6 +15,8 @@ class Pos(val vec: Vec, val angle: Ang) {
     constructor(x: Double) : this(Vec(x), Ang(x))
     constructor(x: Vec) : this(x, Ang.ZERO)
     constructor(x: Ang) : this(Vec.ZERO, x)
+    constructor(x: Double, y: Double, h: Double): this(Vec(x, y), Ang(h))
+    constructor(x: Double, y: Double): this(Vec(x, y), Ang(0.0))
     constructor() : this(Vec.ZERO, Ang.ZERO)
 
     operator fun plus(pos: Pos) =
