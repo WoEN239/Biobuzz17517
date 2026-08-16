@@ -36,7 +36,11 @@ data class Vec(val x: Double, val y: Double) {
         )
     }
 
-    fun normalized() = Vec(1.0, 0.0).setRot(rot())
+    fun normalized(): Vec {
+        val l = l()
+
+        return Vec(x / l, y / l)
+    }
 
     override fun equals(other: Any?): Boolean {
         if (other == null)

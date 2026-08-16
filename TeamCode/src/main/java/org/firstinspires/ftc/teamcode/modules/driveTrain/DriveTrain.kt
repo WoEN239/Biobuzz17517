@@ -28,7 +28,7 @@ internal object DRIVE_TRAIN_CONFIG {
     var H_REGULATOR = RegParams()
 }
 
-class SetTargetDriveVelocityEvent(val linearVel: Vec, val angularVel: Double)
+class SetDriveVelEvent(val linearVel: Vec, val angularVel: Double)
 
 fun attachDriveTrain(collector: Collector) {
     val leftForwardMotor = MotorOnly(
@@ -65,7 +65,7 @@ fun attachDriveTrain(collector: Collector) {
     val yRegulator = Reg(DRIVE_TRAIN_CONFIG.Y_REGULATOR)
     val hRegulator = Reg(DRIVE_TRAIN_CONFIG.H_REGULATOR)
 
-    collector.eventBus.sub(SetTargetDriveVelocityEvent::class) {
+    collector.eventBus.sub(SetDriveVelEvent::class) {
         targetLinearVelocity = it.linearVel
         targetAngularVelocity = it.angularVel
     }
@@ -133,15 +133,17 @@ fun attachDriveTrain(collector: Collector) {
         hRegulator.start()
     }
 
-    collector.updateEvent += {
-        if (collector.runMode == RunMode.MANUAL)
+    collector.updateEvent += if (collector.runMode == RunMode.MANUAL) {
+        {
             setPowers(
                 linearPower.x - linearPower.y - angularPower,
                 linearPower.x + linearPower.y - angularPower,
                 linearPower.x + linearPower.y + angularPower,
                 linearPower.x - linearPower.y + angularPower
             )
-        else {
+        }
+    } else {
+        {
             val odometry = odometryConsumer()
 
             val velocityErr = targetLinearVelocity - odometry.linearVel

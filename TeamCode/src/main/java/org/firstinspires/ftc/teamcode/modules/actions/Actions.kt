@@ -1,6 +1,15 @@
 package org.firstinspires.ftc.teamcode.modules.actions
 
 import com.qualcomm.robotcore.util.ElapsedTime
+import org.firstinspires.ftc.teamcode.modules.driveTrain.DriveSegment
+import org.firstinspires.ftc.teamcode.modules.driveTrain.GetRunnerAtTargetAngleEvent
+import org.firstinspires.ftc.teamcode.modules.driveTrain.GetRunnerAtTargetPositionEvent
+import org.firstinspires.ftc.teamcode.modules.driveTrain.ITrajectorySegment
+import org.firstinspires.ftc.teamcode.modules.driveTrain.MoveSegment
+import org.firstinspires.ftc.teamcode.modules.driveTrain.RunSegmentEvent
+import org.firstinspires.ftc.teamcode.modules.driveTrain.TurnSegment
+import org.firstinspires.ftc.teamcode.utils.events.EventBus
+import java.util.LinkedList
 
 interface IAction {
     fun start() {}
@@ -109,4 +118,39 @@ class BranchAction(
     }
 
     override fun isEnd() = _currentAction == null
+}
+
+class DriveAction(val eventBus: EventBus, vararg segments: ITrajectorySegment) : IAction {
+    val segmentsList = segments.toList()
+    var segmentsCopy: LinkedList<ITrajectorySegment>? = null
+
+    var atTargetAngleConsumer = { true }
+    var atTargetPositionConsumer = { true }
+
+    override fun start() {
+        segmentsCopy = LinkedList(segmentsList)
+
+        atTargetPositionConsumer = eventBus(GetRunnerAtTargetPositionEvent()).atTarget
+        atTargetAngleConsumer = eventBus(GetRunnerAtTargetAngleEvent()).atTarget
+
+        eventBus(RunSegmentEvent(segmentsCopy!!.first()))
+    }
+
+    override fun update() {
+        if (segmentsCopy!!.isNotEmpty()) {
+            val first = segmentsCopy!!.first()
+
+            if ((first is MoveSegment && atTargetPositionConsumer()) ||
+                (first is TurnSegment && atTargetAngleConsumer()) ||
+                (first is DriveSegment && atTargetPositionConsumer() && atTargetAngleConsumer())
+            ) {
+                segmentsCopy?.removeFirst()
+
+                if (segmentsCopy!!.isNotEmpty())
+                    eventBus(RunSegmentEvent(segmentsCopy!!.first()))
+            }
+        }
+    }
+
+    override fun isEnd() = segmentsCopy!!.isEmpty()
 }
