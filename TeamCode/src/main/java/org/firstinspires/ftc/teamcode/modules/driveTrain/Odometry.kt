@@ -117,12 +117,18 @@ fun attachOdometry(collector: Collector) {
         updateImu.join()
         updatePinpoint.join()
 
-        atomicOdometry = pinpointOdometry
+        val pinpointAngle = pinpointOdometry.pos.angle
+
+        atomicOdometry = Odometry(
+            pinpointOdometry.pos,
+            pinpointOdometry.linearVel.turn(pinpointAngle.angle),
+            pinpointOdometry.angularVel
+        )
 
         val filteredHeading = Ang.chop(
             headingFilter.updateRaw(
-                pinpointOdometry.pos.angle(),
-                (robotYaw - pinpointOdometry.pos.angle).angle
+                pinpointAngle.angle,
+                (robotYaw - pinpointAngle).angle
             )
         )
 
