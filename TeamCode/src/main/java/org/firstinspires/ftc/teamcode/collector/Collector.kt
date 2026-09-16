@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.hardware.HardwareMap
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.modules.actions.attachActionRunner
+import org.firstinspires.ftc.teamcode.modules.driveTrain.attachOdometry
 import org.firstinspires.ftc.teamcode.modules.utils.Battery
 import org.firstinspires.ftc.teamcode.modules.utils.Gamepad
 import org.firstinspires.ftc.teamcode.modules.utils.Telemetry
@@ -57,9 +58,12 @@ class Collector {
 
         updateEvent += {
             telemetry.addData("ups", 1.0 / deltaTime.seconds())
+            deltaTime.reset()
         }
 
-        if(runMode == RunMode.AUTO)
+        attachOdometry(this)
+
+        if (runMode == RunMode.AUTO)
             attachActionRunner(this)
     }
 }

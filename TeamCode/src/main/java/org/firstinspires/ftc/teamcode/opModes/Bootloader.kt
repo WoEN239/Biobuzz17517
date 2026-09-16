@@ -3,22 +3,38 @@ package org.firstinspires.ftc.teamcode.opModes
 import com.acmerobotics.dashboard.FtcDashboard
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.OpModeManagerImpl
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
+import com.qualcomm.robotcore.hardware.IMU
+import org.firstinspires.ftc.ftccommon.internal.manualcontrol.parameters.ImuParameters
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil
 import org.firstinspires.ftc.teamcode.collector.GameColor
 import org.firstinspires.ftc.teamcode.collector.Settings
+import org.firstinspires.ftc.teamcode.collector.StartOrientation
 
 @TeleOp
 class Bootloader : LinearOpMode() {
     override fun runOpMode() {
         val pinpoint = hardwareMap.get("odometry") as GoBildaPinpointDriver
+        val imu = hardwareMap.get("imu") as IMU
+
+        imu.initialize(
+            IMU.Parameters(
+                RevHubOrientationOnRobot(
+                    RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
+                    RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
+                )
+            )
+        )
+
         val telemetry = MultipleTelemetry(telemetry, FtcDashboard.getInstance().telemetry)
 
         var isOdometryReseted = false
-        var selectedGameColor = Settings.color.ordinal
-        val gameColors = GameColor.entries
+
+        var selectedGameOrientation = Settings.orientation.ordinal
+        val orientations = StartOrientation.entries
 
         OpModeManagerImpl.getOpModeManagerOfActivity(AppUtil.getInstance().activity)
             .startActiveOpMode()
@@ -29,27 +45,30 @@ class Bootloader : LinearOpMode() {
         while (opModeIsActive()) {
             if (gamepad1.circleWasPressed()) {
                 pinpoint.resetPosAndIMU()
+                imu.resetYaw()
                 isOdometryReseted = true
             }
 
             if (gamepad1.dpadUpWasPressed()) {
-                selectedGameColor++
-                selectedGameColor %= gameColors.size
+                selectedGameOrientation++
+                selectedGameOrientation %= orientations.size
             }
 
             if (gamepad1.dpadDownWasPressed()) {
-                selectedGameColor--
+                selectedGameOrientation--
 
-                if (selectedGameColor < 0)
-                    selectedGameColor = gameColors.lastIndex
+                if (selectedGameOrientation < 0)
+                    selectedGameOrientation = orientations.lastIndex
             }
 
-            telemetry.addLine("selected game color ${gameColors[selectedGameColor]}")
+            telemetry.addLine("selected game orientation ${orientations[selectedGameOrientation]}")
 
             if (isOdometryReseted)
-                telemetry.addLine("odometry reseted")
+                telemetry.addLine("odometry and imu reseted")
 
             telemetry.update()
         }
+
+        Settings.orientation = orientations[selectedGameOrientation]
     }
 }

@@ -10,8 +10,8 @@ interface IGamepadListener {
 }
 
 class GamepadListener(
-    val activateState: Boolean, val buttonSuppler: (Gamepad) -> Boolean,
-    val onTriggered: () -> Unit
+    val buttonSuppler: (Gamepad) -> Boolean,
+    val onTriggered: () -> Unit, val activateState: Boolean = true
 ) : IGamepadListener {
     override fun update(gamepadData: Gamepad) {
         if (buttonSuppler(gamepadData) == activateState)
