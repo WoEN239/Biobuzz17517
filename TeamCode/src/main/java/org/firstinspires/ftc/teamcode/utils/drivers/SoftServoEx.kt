@@ -14,17 +14,15 @@ import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.pow
 import kotlin.math.sign
+import kotlin.math.sqrt
 
 @Config
 internal object SOFT_SERVO_EX_CONFIG {
     @JvmField
-    var SERVO_A = 5.0
+    var SERVO_A = 7.0
 
     @JvmField
-    var SERVO_V_MAX = 10.0
-
-    @JvmField
-    var S_TOLERANCE = 0.001
+    var SERVO_V_MAX = 3.5
 }
 
 class SoftServoEx(
@@ -55,46 +53,34 @@ class SoftServoEx(
         (_servo as ServoImplEx).pwmRange = PwmControl.PwmRange(500.0, 2500.0)
     }
 
-    fun update(telemetry: MultipleTelemetry) {
-        val ds = _deltaTime.seconds()
+    fun update() {
+        val dt = _deltaTime.seconds()
         _deltaTime.reset()
 
-        var S = targetPosition - currentPosition
-        val sS = S.sign
-        S = S.absoluteValue
+        val eps = 1e-6
+        val e = targetPosition - currentPosition
 
-        telemetry.addData("target", targetPosition)
-        telemetry.addData("velocity", _velocity)
-
-        if (S < SOFT_SERVO_EX_CONFIG.S_TOLERANCE)
+        if (abs(e) < eps && abs(_velocity) < eps)
             _velocity = 0.0
         else {
-            val t1 = (vMax * sS - _velocity).absoluteValue / a
-            val S1 = t1 * (if(_velocity.sign != sS) t1 * a else (t1 * a / 2.0 + _velocity.absoluteValue))
+            val s = sign(e)
+            val vAllow = sqrt(2.0 * a * abs(e))
+            val vDes = s * minOf(vMax, vAllow)
 
-            val S3 = (vMax / a).pow(2) * a / 2.0
+            var dv = vDes - _velocity
+            dv = if (dv > 0) minOf(dv, a * dt) else maxOf(dv, -a * dt)
 
-            if (S1 + S3 < S) {
-                _velocity += a * ds * sS
-                telemetry.addLine("state 1")
-            } else {
-                val S3s = (_velocity / a).pow(2) * a / 2.0
+            var vCmd = _velocity + dv
 
-                if (S < S3s || abs(S - S3s) < SOFT_SERVO_EX_CONFIG.S_TOLERANCE) {
-                    _velocity -= a * ds * sS
-
-                    telemetry.addLine("state 2")
-                }
-                else {
-                    _velocity += a * ds * sS
-
-                    telemetry.addLine("state 3")
-                }
+            if (abs(vCmd) > eps) {
+                val nextPos = currentPosition + vCmd * dt
+                if ((targetPosition - nextPos) * e < 0.0) vCmd = e / dt
             }
+
+            _velocity = vCmd
         }
 
-        _velocity = clamp(_velocity, -vMax, vMax)
-        currentPosition += _velocity * ds
+        currentPosition += _velocity * dt
     }
 
     fun attach(collector: Collector): SoftServoEx {
@@ -102,9 +88,9 @@ class SoftServoEx(
             start()
         }
 
-//        collector.updateEvent += {
-//            update()
-//        }
+        collector.updateEvent += {
+            update()
+        }
 
         return this
     }
