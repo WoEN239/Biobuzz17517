@@ -10,6 +10,11 @@ import org.firstinspires.ftc.teamcode.utils.units.Color
 import org.firstinspires.ftc.teamcode.utils.units.Vec
 
 class Telemetry {
+    enum class Priority {
+        MIN,
+        MAX
+    }
+
     private val _mobileTelemetry: Telemetry
     private val _dashboard: FtcDashboard
 
@@ -21,10 +26,13 @@ class Telemetry {
     constructor(collector: Collector) {
         _mobileTelemetry = collector.opMode.telemetry
         _dashboard = FtcDashboard.getInstance()
+//        _canvas.drawImage("/images/biobuzz_field.webp", 0.0, 0.0, 144.0, 144.0)
 
         fun update () {
             _dashboard.sendTelemetryPacket(_telemetryPacket)
             _telemetryPacket = TelemetryPacket()
+
+//            _canvas.drawImage("/images/biobuzz_field.webp", 0.0, 0.0, 144.0, 144.0)
 
             _mobileTelemetry.update()
         }
@@ -33,7 +41,10 @@ class Telemetry {
         collector.initUpdateEvent += ::update
     }
 
-    fun addData(name: String, data: Any) {
+    fun addData(name: String, data: Any, priority: Priority = Priority.MIN) {
+//        if(priority == Priority.MIN)
+//            return
+
         _mobileTelemetry.addData(name, data)
         _telemetryPacket.put(name, data)
     }

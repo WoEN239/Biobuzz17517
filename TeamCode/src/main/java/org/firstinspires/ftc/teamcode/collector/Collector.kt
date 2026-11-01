@@ -5,7 +5,10 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.hardware.HardwareMap
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.modules.actions.attachActionRunner
+import org.firstinspires.ftc.teamcode.modules.driveTrain.attachDriveTrain
 import org.firstinspires.ftc.teamcode.modules.driveTrain.attachOdometry
+import org.firstinspires.ftc.teamcode.modules.driveTrain.attachRunner
+import org.firstinspires.ftc.teamcode.modules.transfer.attachTransfer
 import org.firstinspires.ftc.teamcode.modules.turret.attachTurret
 import org.firstinspires.ftc.teamcode.modules.utils.Battery
 import org.firstinspires.ftc.teamcode.modules.utils.Gamepad
@@ -58,15 +61,18 @@ class Collector {
         }
 
         updateEvent += {
-            telemetry.addData("ups", 1.0 / deltaTime.seconds())
+            telemetry.addData("ups", 1.0 / deltaTime.seconds(), Telemetry.Priority.MAX)
             deltaTime.reset()
         }
 
+        attachOdometry(this)
+        attachDriveTrain(this)
+        attachTransfer(this)
         attachTurret(this)
 
-//        attachOdometry(this)
-//
-//        if (runMode == RunMode.AUTO)
-//            attachActionRunner(this)
+        if (runMode == RunMode.AUTO) {
+            attachRunner(this)
+            attachActionRunner(this)
+        }
     }
 }

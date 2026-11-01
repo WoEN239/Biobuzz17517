@@ -3,11 +3,10 @@ package org.firstinspires.ftc.teamcode.modules.driveTrain
 import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.robotcore.hardware.DcMotor
 import com.qualcomm.robotcore.hardware.DcMotorEx
+import com.qualcomm.robotcore.hardware.DcMotorSimple
 import com.qualcomm.robotcore.hardware.Gamepad
 import org.firstinspires.ftc.teamcode.collector.Collector
-import org.firstinspires.ftc.teamcode.collector.GameColor
 import org.firstinspires.ftc.teamcode.collector.RunMode
-import org.firstinspires.ftc.teamcode.collector.Settings
 import org.firstinspires.ftc.teamcode.modules.utils.IGamepadListener
 import org.firstinspires.ftc.teamcode.utils.Reg
 import org.firstinspires.ftc.teamcode.utils.RegParams
@@ -19,13 +18,22 @@ import kotlin.math.absoluteValue
 @Config
 internal object DRIVE_TRAIN_CONFIG {
     @JvmField
-    var X_REGULATOR = RegParams()
+    var X_REGULATOR = RegParams(kF = 7.0, kP = 3.0)
 
     @JvmField
-    var Y_REGULATOR = RegParams()
+    var Y_REGULATOR = RegParams(kF = 8.0, kP = 3.1)
 
     @JvmField
-    var H_REGULATOR = RegParams()
+    var H_REGULATOR = RegParams(kF = 1.6, kP = 1.0)
+
+    @JvmField
+    var MAX_ROBOT_LINEAR_VELOCITY = 2.2
+
+    @JvmField
+    var MAX_ROBOT_ANGULAR_VELOCITY = 10.0
+
+    @JvmField
+    var W = 0.8
 }
 
 class SetDriveVelEvent(val linearVel: Vec, val angularVel: Double)
@@ -33,25 +41,28 @@ class SetDriveVelEvent(val linearVel: Vec, val angularVel: Double)
 fun attachDriveTrain(collector: Collector) {
     val leftForwardMotor = MotorOnly(
         collector.hardwareMap
-            .get("leftForwardDrive") as DcMotorEx
+            .get("leftForwardMotor") as DcMotorEx
     )
     val leftBackMotor = MotorOnly(
         collector.hardwareMap
-            .get("leftBackDrive") as DcMotorEx
+            .get("leftBackMotor") as DcMotorEx
     )
     val rightForwardMotor = MotorOnly(
         collector.hardwareMap
-            .get("rightForwardDrive") as DcMotorEx
+            .get("rightForwardMotor") as DcMotorEx
     )
     val rightBackMotor = MotorOnly(
         collector.hardwareMap
-            .get("rightBackDrive") as DcMotorEx
+            .get("rightBackMotor") as DcMotorEx
     )
 
     leftForwardMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
     leftBackMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
     rightForwardMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
     rightBackMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
+
+    leftBackMotor.direction = DcMotorSimple.Direction.REVERSE
+    rightBackMotor.direction = DcMotorSimple.Direction.REVERSE
 
     val odometryConsumer = collector.eventBus(GetOdometryConsumerEvent()).consumer
 
@@ -78,17 +89,19 @@ fun attachDriveTrain(collector: Collector) {
                 Vec(
                     -gamepadData.left_stick_y.toDouble(),
                     -gamepadData.left_stick_x.toDouble()
-                ).turn(
-                    -pos.angle() +
-                            (if (Settings.orientation.color == GameColor.BLUE) -PI else PI) / 2.0
                 )
+                    .turn(
+                        -pos.angle() + PI / 2.0
+                    )
             angularPower = -gamepadData.right_stick_x.toDouble()
 
-            linearPower *= Vec(
-                linearPower.x.absoluteValue,
-                linearPower.y.absoluteValue
-            )
-            angularPower *= angularPower.absoluteValue
+            fun calculate(x: Double) = (1 - DRIVE_TRAIN_CONFIG.W) * x + DRIVE_TRAIN_CONFIG.W * x * x * x
+
+            linearPower = Vec(calculate(linearPower.x), calculate(linearPower.y))
+            angularPower = calculate(angularPower)
+
+            targetLinearVelocity = linearPower * DRIVE_TRAIN_CONFIG.MAX_ROBOT_LINEAR_VELOCITY
+            targetAngularVelocity = angularPower * DRIVE_TRAIN_CONFIG.MAX_ROBOT_ANGULAR_VELOCITY
         }
     })
 
@@ -133,46 +146,51 @@ fun attachDriveTrain(collector: Collector) {
         hRegulator.start()
     }
 
-    collector.updateEvent += if (collector.runMode == RunMode.MANUAL) {
-        {
-            setPowers(
-                linearPower.x - linearPower.y - angularPower,
-                linearPower.x + linearPower.y - angularPower,
-                linearPower.x + linearPower.y + angularPower,
-                linearPower.x - linearPower.y + angularPower
-            )
-        }
-    } else {
-        {
-            val odometry = odometryConsumer()
+    collector.updateEvent +=
+//        if (collector.runMode == RunMode.MANUAL) {
+//            {
+//                setPowers(
+//                    linearPower.x - linearPower.y - angularPower,
+//                    linearPower.x + linearPower.y - angularPower,
+//                    linearPower.x + linearPower.y + angularPower,
+//                    linearPower.x - linearPower.y + angularPower
+//                )
+//            }
+//        } else {
+            {
+                val odometry = odometryConsumer()
 
-            val velocityErr = targetLinearVelocity - odometry.linearVel
+                val velocityErr = targetLinearVelocity - odometry.linearVel
 
-            linearPower = Vec(
-                xRegulator.update(
-                    velocityErr.x,
-                    targetLinearVelocity.x,
-                    collector.battery.currentVoltage
-                ),
-                yRegulator.update(
-                    velocityErr.y,
-                    targetLinearVelocity.y,
+                collector.telemetry.addData("target robot vel x", targetLinearVelocity.x)
+                collector.telemetry.addData("target robot vel y", targetLinearVelocity.y)
+                collector.telemetry.addData("target robot angular vel", targetAngularVelocity)
+
+                linearPower = Vec(
+                    xRegulator.update(
+                        velocityErr.x,
+                        targetLinearVelocity.x,
+                        collector.battery.currentVoltage
+                    ),
+                    yRegulator.update(
+                        velocityErr.y,
+                        targetLinearVelocity.y,
+                        collector.battery.currentVoltage
+                    )
+                )
+
+                val angularPower = hRegulator.update(
+                    targetAngularVelocity - odometry.angularVel,
+                    targetAngularVelocity,
                     collector.battery.currentVoltage
                 )
-            )
 
-            angularPower = hRegulator.update(
-                targetAngularVelocity - odometry.angularVel,
-                targetAngularVelocity,
-                collector.battery.currentVoltage
-            )
-
-            setPowers(
-                collector.battery.voltageToPower(linearPower.x - linearPower.y - angularPower),
-                collector.battery.voltageToPower(linearPower.x + linearPower.y - angularPower),
-                collector.battery.voltageToPower(linearPower.x + linearPower.y + angularPower),
-                collector.battery.voltageToPower(linearPower.x - linearPower.y + angularPower)
-            )
-        }
-    }
+                setPowers(
+                    collector.battery.voltageToPower(linearPower.x - linearPower.y - angularPower),
+                    collector.battery.voltageToPower(linearPower.x + linearPower.y - angularPower),
+                    collector.battery.voltageToPower(linearPower.x + linearPower.y + angularPower),
+                    collector.battery.voltageToPower(linearPower.x - linearPower.y + angularPower)
+                )
+            }
+//        }
 }

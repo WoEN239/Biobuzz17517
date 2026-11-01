@@ -10,7 +10,6 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.IMU
 import org.firstinspires.ftc.ftccommon.internal.manualcontrol.parameters.ImuParameters
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil
-import org.firstinspires.ftc.teamcode.collector.GameColor
 import org.firstinspires.ftc.teamcode.collector.Settings
 import org.firstinspires.ftc.teamcode.collector.StartOrientation
 
@@ -18,16 +17,6 @@ import org.firstinspires.ftc.teamcode.collector.StartOrientation
 class Bootloader : LinearOpMode() {
     override fun runOpMode() {
         val pinpoint = hardwareMap.get("odometry") as GoBildaPinpointDriver
-        val imu = hardwareMap.get("imu") as IMU
-
-        imu.initialize(
-            IMU.Parameters(
-                RevHubOrientationOnRobot(
-                    RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
-                    RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
-                )
-            )
-        )
 
         val telemetry = MultipleTelemetry(telemetry, FtcDashboard.getInstance().telemetry)
 
@@ -45,7 +34,6 @@ class Bootloader : LinearOpMode() {
         while (opModeIsActive()) {
             if (gamepad1.circleWasPressed()) {
                 pinpoint.resetPosAndIMU()
-                imu.resetYaw()
                 isOdometryReseted = true
             }
 
@@ -64,7 +52,7 @@ class Bootloader : LinearOpMode() {
             telemetry.addLine("selected game orientation ${orientations[selectedGameOrientation]}")
 
             if (isOdometryReseted)
-                telemetry.addLine("odometry and imu reseted")
+                telemetry.addLine("odometry reseted")
 
             telemetry.update()
         }

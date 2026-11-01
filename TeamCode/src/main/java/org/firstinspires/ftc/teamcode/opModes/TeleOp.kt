@@ -11,7 +11,7 @@ import kotlin.math.absoluteValue
 @TeleOp
 class TeleOp : LinearOpMode() {
     override fun runOpMode() {
-        val collector = Collector(this, RunMode.AUTO)
+        val collector = Collector(this, RunMode.MANUAL)
 
         while (!isStarted()) {
             collector.initUpdateEvent()

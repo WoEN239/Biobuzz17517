@@ -28,7 +28,7 @@ class CachedServo : Servo {
         if (_oldPosition == null)
             _oldPosition = position
         else {
-            if (abs(_oldPosition!! - position) < 0.0001)
+            if (abs(_oldPosition!! - position) < 0.005)
                 return
 
             _oldPosition = position

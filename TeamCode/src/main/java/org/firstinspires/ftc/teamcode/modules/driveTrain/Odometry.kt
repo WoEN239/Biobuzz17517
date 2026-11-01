@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.modules.driveTrain
 
+import android.annotation.SuppressLint
 import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot
@@ -13,7 +14,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D
 import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit
 import org.firstinspires.ftc.teamcode.collector.Collector
-import org.firstinspires.ftc.teamcode.collector.GameColor
 import org.firstinspires.ftc.teamcode.collector.Settings
 import org.firstinspires.ftc.teamcode.modules.utils.GamepadListener
 import org.firstinspires.ftc.teamcode.utils.ExponentialFilter
@@ -25,16 +25,16 @@ import org.firstinspires.ftc.teamcode.utils.units.Vec
 @Config
 internal object ODOMETRY_CONFIG {
     @JvmField
-    var X_POD_POSITION = 0.0
+    var X_POD_POSITION = -0.022525
 
     @JvmField
-    var Y_POD_POSITION = 0.0
+    var Y_POD_POSITION = -0.095
 
     @JvmField
     var HEADING_FILTER = 0.2
 
     @JvmField
-    var ROBOT_SIZE = Vec(0.0, 0.0)
+    var ROBOT_SIZE = Vec(0.325, 0.3135)
 }
 
 class Odometry(val pos: Pos, val linearVel: Vec, val angularVel: Double) {
@@ -49,6 +49,17 @@ class GetOdometryConsumerEvent(var consumer: () -> Odometry = { Odometry.ZERO })
 fun attachOdometry(collector: Collector) {
     val pinpoint = collector.hardwareMap.get("odometry") as GoBildaPinpointDriver
 
+    pinpoint.setOffsets(
+        ODOMETRY_CONFIG.X_POD_POSITION,
+        ODOMETRY_CONFIG.Y_POD_POSITION,
+        DistanceUnit.METER
+    )
+
+    pinpoint.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD)
+    pinpoint.setEncoderDirections(
+        GoBildaPinpointDriver.EncoderDirection.REVERSED,
+        GoBildaPinpointDriver.EncoderDirection.FORWARD
+    )
     pinpoint.setBulkReadScope(
         GoBildaPinpointDriver.Register.X_POSITION,
         GoBildaPinpointDriver.Register.Y_POSITION,
@@ -58,29 +69,9 @@ fun attachOdometry(collector: Collector) {
         GoBildaPinpointDriver.Register.H_VELOCITY
     )
 
-    pinpoint.setOffsets(
-        ODOMETRY_CONFIG.X_POD_POSITION,
-        ODOMETRY_CONFIG.Y_POD_POSITION,
-        DistanceUnit.METER
-    )
-
-    val imu = collector.hardwareMap.get("imu") as IMU
-
-    imu.initialize(
-        IMU.Parameters(
-            RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.RIGHT,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
-            )
-        )
-    )
-
     var odometry = Odometry.ZERO
     var atomicOdometry = odometry
     val odometryConsumer = { odometry }
-
-    val headingFilter = ExponentialFilter(ODOMETRY_CONFIG.HEADING_FILTER)
-    headingFilter.start()
 
     collector.eventBus.sub(GetOdometryConsumerEvent::class) {
         it.consumer = odometryConsumer
@@ -88,51 +79,27 @@ fun attachOdometry(collector: Collector) {
 
     val scope = CoroutineScope(Dispatchers.IO)
 
-    suspend fun CoroutineScope.updateOdometry() {
-        var robotYaw = Ang.ZERO
+    fun updateOdometry() {
+        pinpoint.update()
 
-        val updateImu = launch {
-            robotYaw = Ang(imu.robotYawPitchRollAngles.getYaw(AngleUnit.RADIANS))
-        }
-
-        var pinpointOdometry = Odometry.ZERO
-
-        val updatePinpoint = launch {
-            pinpoint.update()
-
-            pinpointOdometry = Odometry(
-                Pos(
-                    pinpoint.getPosX(DistanceUnit.METER),
-                    pinpoint.getPosY(DistanceUnit.METER),
-                    pinpoint.getHeading(UnnormalizedAngleUnit.RADIANS)
-                ),
-                Vec(
-                    pinpoint.getVelX(DistanceUnit.METER),
-                    pinpoint.getVelY(DistanceUnit.METER)
-                ),
-                pinpoint.getHeadingVelocity(UnnormalizedAngleUnit.RADIANS)
-            )
-        }
-
-        updateImu.join()
-        updatePinpoint.join()
-
-        val pinpointAngle = pinpointOdometry.pos.angle
+        val pinpointOdometry = Odometry(
+            Pos(
+                pinpoint.getPosX(DistanceUnit.METER),
+                pinpoint.getPosY(DistanceUnit.METER),
+                pinpoint.getHeading(UnnormalizedAngleUnit.RADIANS)
+            ),
+            Vec(
+                pinpoint.getVelX(DistanceUnit.METER),
+                pinpoint.getVelY(DistanceUnit.METER)
+            ),
+            pinpoint.getHeadingVelocity(UnnormalizedAngleUnit.RADIANS)
+        )
 
         atomicOdometry = Odometry(
             pinpointOdometry.pos,
-            pinpointOdometry.linearVel.turn(pinpointAngle.angle),
+            pinpointOdometry.linearVel.turn(-pinpointOdometry.pos.angle.toDouble()),
             pinpointOdometry.angularVel
         )
-
-        val filteredHeading = Ang.chop(
-            headingFilter.updateRaw(
-                pinpointAngle.angle,
-                (robotYaw - pinpointAngle).angle
-            )
-        )
-
-        pinpoint.setHeading(filteredHeading, AngleUnit.RADIANS)
     }
 
     var odometryJob = scope.launch { updateOdometry() }
@@ -144,15 +111,20 @@ fun attachOdometry(collector: Collector) {
 
         odometryJob = scope.launch { updateOdometry() }
 
-        collector.telemetry.drawRect(
-            atomicOdometry.pos.vec,
-            ODOMETRY_CONFIG.ROBOT_SIZE,
-            atomicOdometry.pos.angle(),
-            if (Settings.orientation.color == GameColor.RED) Color.RED else Color.BLUE
-        )
+//        collector.telemetry.drawRect(
+//            atomicOdometry.pos.vec,
+//            ODOMETRY_CONFIG.ROBOT_SIZE,
+//            atomicOdometry.pos.angle(),
+//            Color.ORANGE
+//        )
         collector.telemetry.addData("robot pos", atomicOdometry.pos)
 
-        headingFilter.k = ODOMETRY_CONFIG.HEADING_FILTER
+        collector.telemetry.addData("robot vel x", atomicOdometry.linearVel.x)
+        collector.telemetry.addData("robot vel y", atomicOdometry.linearVel.y)
+        collector.telemetry.addData("robot vel", atomicOdometry.linearVel.l())
+        collector.telemetry.addData("robot angular vel", atomicOdometry.angularVel)
+
+//        headingFilter.k = ODOMETRY_CONFIG.HEADING_FILTER
     }
 
     collector.initUpdateEvent += update

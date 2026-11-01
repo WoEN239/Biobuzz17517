@@ -143,7 +143,7 @@ class CachedMotor: DcMotorEx {
     override fun getDirection(): DcMotorSimple.Direction? = _motor.direction
 
     override fun setPower(power: Double) {
-        if(abs(_oldPower - power) < 0.0001)
+        if(abs(_oldPower - power) < 0.01)
             return
 
         _oldPower = power

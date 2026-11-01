@@ -38,7 +38,7 @@ class MotorOnly : DcMotorEx {
     override fun getDirection() = _direction
 
     override fun setPower(power: Double) {
-        if(abs(power - _oldPower) < 0.0001)
+        if(abs(power - _oldPower) < 0.01)
             return
 
         _oldPower = power

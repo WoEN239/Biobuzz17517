@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.hardware.ServoImplEx
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.collector.Collector
 import org.firstinspires.ftc.teamcode.modules.utils.Telemetry
+import org.firstinspires.ftc.teamcode.utils.motor.CachedServo
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 import kotlin.math.pow
@@ -19,7 +20,7 @@ import kotlin.math.sqrt
 @Config
 internal object SOFT_SERVO_EX_CONFIG {
     @JvmField
-    var SERVO_A = 7.0
+    var SERVO_A = 0.1
 
     @JvmField
     var SERVO_V_MAX = 3.5
@@ -32,7 +33,8 @@ class SoftServoEx(
     var a: Double = SOFT_SERVO_CONFIG.SERVO_A,
     var vMax: Double = SOFT_SERVO_CONFIG.SERVO_V_MAX
 ) {
-    private val _servo = hardwareMap.get(servoName) as Servo
+    private val _rawServo = hardwareMap.get(servoName) as Servo
+    private val _servo = CachedServo(_rawServo)
 
     private val _deltaTime = ElapsedTime()
 
@@ -50,7 +52,7 @@ class SoftServoEx(
         currentPosition = _startPosition
         targetPosition = _startPosition
 
-        (_servo as ServoImplEx).pwmRange = PwmControl.PwmRange(500.0, 2500.0)
+        (_rawServo as ServoImplEx).pwmRange = PwmControl.PwmRange(500.0, 2500.0)
     }
 
     fun update() {
