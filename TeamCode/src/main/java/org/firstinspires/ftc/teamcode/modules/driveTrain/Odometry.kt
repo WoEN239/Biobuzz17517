@@ -21,6 +21,7 @@ import org.firstinspires.ftc.teamcode.utils.units.Ang
 import org.firstinspires.ftc.teamcode.utils.units.Color
 import org.firstinspires.ftc.teamcode.utils.units.Pos
 import org.firstinspires.ftc.teamcode.utils.units.Vec
+import kotlin.math.PI
 
 @Config
 internal object ODOMETRY_CONFIG {
@@ -76,6 +77,12 @@ fun attachOdometry(collector: Collector) {
     collector.eventBus.sub(GetOdometryConsumerEvent::class) {
         it.consumer = odometryConsumer
     }
+
+    collector.gamepad.addGamepad1Listener(GamepadListener({it.dpadLeftWasReleased()}, {
+        pinpoint.setHeading(PI / 2.0, AngleUnit.RADIANS)
+        pinpoint.setPosX(-1.625, DistanceUnit.METER)
+        pinpoint.setPosY(-1.609, DistanceUnit.METER)
+    }))
 
     val scope = CoroutineScope(Dispatchers.IO)
 

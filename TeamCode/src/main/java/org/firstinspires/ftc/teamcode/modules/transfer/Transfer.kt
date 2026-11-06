@@ -30,6 +30,9 @@ internal object TRANSFER_CONFIG {
 
     @JvmField
     var BRUSH_REVERSE_POWER = 0.45
+
+    @JvmField
+    var SHOOTING_POWER = 0.85
 }
 
 fun attachTransfer(collector: Collector) {
@@ -92,12 +95,12 @@ fun attachTransfer(collector: Collector) {
             }
 
             TransferState.EAT -> {
-                transferMotor.power = 1.0
+                transferMotor.power = TRANSFER_CONFIG.SHOOTING_POWER
                 turretDoorServo.position = TRANSFER_CONFIG.DOOR_SERVO_CLOSE
             }
 
             TransferState.SHUTTING -> {
-                transferMotor.power = 1.0
+                transferMotor.power = TRANSFER_CONFIG.SHOOTING_POWER
 
                 turretDoorServo.position = TRANSFER_CONFIG.DOOR_SERVO_OPEN
             }
