@@ -26,7 +26,7 @@ import kotlin.math.PI
 @Config
 internal object ODOMETRY_CONFIG {
     @JvmField
-    var X_POD_POSITION = -0.022525
+    var X_POD_POSITION = -0.0315
 
     @JvmField
     var Y_POD_POSITION = -0.095

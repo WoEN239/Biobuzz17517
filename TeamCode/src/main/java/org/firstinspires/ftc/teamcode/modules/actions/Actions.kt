@@ -8,6 +8,9 @@ import org.firstinspires.ftc.teamcode.modules.driveTrain.ITrajectorySegment
 import org.firstinspires.ftc.teamcode.modules.driveTrain.MoveSegment
 import org.firstinspires.ftc.teamcode.modules.driveTrain.RunSegmentEvent
 import org.firstinspires.ftc.teamcode.modules.driveTrain.TurnSegment
+import org.firstinspires.ftc.teamcode.modules.transfer.SwitchTransferStateEvent
+import org.firstinspires.ftc.teamcode.modules.transfer.TRANSFER_CONFIG
+import org.firstinspires.ftc.teamcode.modules.transfer.TransferState
 import org.firstinspires.ftc.teamcode.utils.events.EventBus
 import java.util.LinkedList
 
@@ -153,4 +156,32 @@ class DriveAction(val eventBus: EventBus, vararg segments: ITrajectorySegment) :
     }
 
     override fun isEnd() = segmentsCopy!!.isEmpty()
+}
+
+class ShootAction(val eventBus: EventBus): IAction {
+    val timer = ElapsedTime()
+
+    override fun start() {
+        timer.reset()
+
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.SHUTTING))
+    }
+
+    override fun stop(force: Boolean) {
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.NONE))
+    }
+
+    override fun isEnd() = timer.seconds() > TRANSFER_CONFIG.SHOOT_TIME
+}
+
+class StartEatAction(val eventBus: EventBus): IAction {
+    override fun start() {
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.EAT))
+    }
+}
+
+class StopEatAction(val eventBus: EventBus): IAction {
+    override fun start() {
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.NONE))
+    }
 }

@@ -18,19 +18,19 @@ import kotlin.math.absoluteValue
 @Config
 internal object DRIVE_TRAIN_CONFIG {
     @JvmField
-    var X_REGULATOR = RegParams(kF = 7.0, kP = 3.0)
+    var X_REGULATOR = RegParams(kF = 6.5, kP = 4.0)
 
     @JvmField
-    var Y_REGULATOR = RegParams(kF = 8.0, kP = 3.1)
+    var Y_REGULATOR = RegParams(kF = 7.5, kP = 5.0)
 
     @JvmField
-    var H_REGULATOR = RegParams(kF = 1.6, kP = 1.0)
+    var H_REGULATOR = RegParams(kF = 1.2, kP = 1.2)
 
     @JvmField
-    var MAX_ROBOT_LINEAR_VELOCITY = 2.2
+    var MAX_ROBOT_LINEAR_VELOCITY = 2.3
 
     @JvmField
-    var MAX_ROBOT_ANGULAR_VELOCITY = 10.0
+    var MAX_ROBOT_ANGULAR_VELOCITY = 10.2
 
     @JvmField
     var W = 0.8
@@ -61,7 +61,8 @@ fun attachDriveTrain(collector: Collector) {
     rightForwardMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
     rightBackMotor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 
-    leftBackMotor.direction = DcMotorSimple.Direction.REVERSE
+//    leftBackMotor.direction = DcMotorSimple.Direction.REVERSE
+    leftForwardMotor.direction = DcMotorSimple.Direction.REVERSE
     rightBackMotor.direction = DcMotorSimple.Direction.REVERSE
 
     val odometryConsumer = collector.eventBus(GetOdometryConsumerEvent()).consumer

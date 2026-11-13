@@ -6,6 +6,7 @@ import com.acmerobotics.dashboard.telemetry.MultipleTelemetry
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.PwmControl
+import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.hardware.ServoImplEx
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.utils.drivers.SOFT_SERVO_EX_CONFIG
@@ -20,25 +21,32 @@ internal object TURRET_ROTATE_TEST_CONFIG {
 @TeleOp(group = "tests")
 class TurretRotateTest: LinearOpMode() {
     override fun runOpMode() {
-        val serv = SoftServoEx("serv", hardwareMap, TURRET_ROTATE_TEST_CONFIG.TARGET, SOFT_SERVO_EX_CONFIG.SERVO_A,
-            SOFT_SERVO_EX_CONFIG.SERVO_V_MAX)
+
+        val rawServ = hardwareMap.get("turretRotateServo") as Servo
+
+        (rawServ as ServoImplEx).pwmRange = PwmControl.PwmRange(500.0, 2500.0)
+
+//        val serv = SoftServoEx("serv", hardwareMap, TURRET_ROTATE_TEST_CONFIG.TARGET, SOFT_SERVO_EX_CONFIG.SERVO_A,
+//            SOFT_SERVO_EX_CONFIG.SERVO_V_MAX)
 
         val multiTelemetry = MultipleTelemetry(FtcDashboard.getInstance().telemetry, telemetry)
 
         waitForStart()
         resetRuntime()
 
-        serv.start()
+//        serv.start()
 
         while(opModeIsActive()){
-            serv.update()
 
-            serv.targetPosition = TURRET_ROTATE_TEST_CONFIG.TARGET
+            rawServ.position = TURRET_ROTATE_TEST_CONFIG.TARGET
+//            serv.update()
 
-            multiTelemetry.addData("current", serv.currentPosition)
-            multiTelemetry.addData("target", serv.targetPosition)
-
-            multiTelemetry.update()
+//            serv.targetPosition = TURRET_ROTATE_TEST_CONFIG.TARGET
+//
+//            multiTelemetry.addData("current", serv.currentPosition)
+//            multiTelemetry.addData("target", serv.targetPosition)
+//
+//            multiTelemetry.update()
         }
     }
 }

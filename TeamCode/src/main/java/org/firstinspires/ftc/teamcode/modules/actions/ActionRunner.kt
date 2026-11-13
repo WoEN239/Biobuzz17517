@@ -1,10 +1,10 @@
 package org.firstinspires.ftc.teamcode.modules.actions
 
 import org.firstinspires.ftc.teamcode.collector.Collector
-import org.firstinspires.ftc.teamcode.trajectoryes.testTrajectory
+import org.firstinspires.ftc.teamcode.trajectoryes.rightTrajectory
 
 fun attachActionRunner(collector: Collector) {
-    var currentAction: ActionLink? = testTrajectory(collector)
+    var currentAction: ActionLink? = rightTrajectory(collector)
 
     collector.startEvent += {
         currentAction?.action?.start()

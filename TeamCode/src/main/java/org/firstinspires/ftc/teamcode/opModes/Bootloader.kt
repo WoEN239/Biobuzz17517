@@ -48,10 +48,10 @@ class Bootloader : LinearOpMode() {
 
         while (opModeIsActive()) {
             if (gamepad1.circleWasPressed()) {
-                pinpoint.recalibrateIMU()
-                pinpoint.setHeading(0.0, AngleUnit.RADIANS)
-                pinpoint.setPosX(0.172, DistanceUnit.METER)
-                pinpoint.setPosY(-1.033, DistanceUnit.METER)
+                pinpoint.resetPosAndIMU()
+//                pinpoint.setHeading(0.0, AngleUnit.RADIANS)
+//                pinpoint.setPosX(0.172, DistanceUnit.METER)
+//                pinpoint.setPosY(-1.033, DistanceUnit.METER)
 
                 isOdometryReseted = true
             }
