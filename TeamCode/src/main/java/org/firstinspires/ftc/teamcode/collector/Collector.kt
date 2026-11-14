@@ -67,8 +67,8 @@ class Collector {
 
         attachOdometry(this)
         attachDriveTrain(this)
-        attachTransfer(this)
         attachTurret(this)
+        attachTransfer(this)
 
         if (runMode == RunMode.AUTO) {
             attachRunner(this)

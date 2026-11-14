@@ -9,6 +9,7 @@ import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.collector.Collector
 import org.firstinspires.ftc.teamcode.collector.RunMode
+import org.firstinspires.ftc.teamcode.modules.turret.GetTurretAtTargetConsumer
 import org.firstinspires.ftc.teamcode.modules.utils.GamepadListener
 import org.firstinspires.ftc.teamcode.modules.utils.IGamepadListener
 import org.firstinspires.ftc.teamcode.utils.motor.CachedServo
@@ -39,16 +40,24 @@ internal object TRANSFER_CONFIG {
     var SHOOT_TIMER = 0.1
 
     @JvmField
-    var FLOWER_UP = 0.0
+    var FLOWER_UP = 0.45
 
     @JvmField
-    var FLOWER_DOWN = 0.5
+    var FLOWER_DOWN = 0.86
 
     @JvmField
     var SHOOT_TIME = 1.5
+
+    @JvmField
+    var STOPPING_REVERSE_TIMER = 0.05
+
+    @JvmField
+    var STOPPING_FORWARD_TIMER = 0.05
 }
 
 class SwitchTransferStateEvent(val newState: TransferState)
+
+class SwitchFlowerStateEvent(val newState: Boolean)
 
 fun attachTransfer(collector: Collector) {
     val flowerServo = collector.hardwareMap.get("flowerServo") as Servo
@@ -65,11 +74,16 @@ fun attachTransfer(collector: Collector) {
 
     var state = TransferState.NONE
 
+    var flowerState = false
+
     var oldState = TransferState.NONE
 
     var brushState = true
 
     val stateTimer = ElapsedTime()
+    val gameTimer = ElapsedTime()
+
+    val turretConsumer = collector.eventBus.invoke(GetTurretAtTargetConsumer()).consumer
 
     fun switchState(newState: TransferState) {
         if (newState == state)
@@ -88,8 +102,15 @@ fun attachTransfer(collector: Collector) {
         brushState = it.newState == TransferState.SHUTTING || it.newState == TransferState.EAT
     }
 
-    collector.startEvent += {
+    collector.eventBus.sub(SwitchFlowerStateEvent::class) {
+        flowerState = it.newState
+    }
+
+    if (collector.runMode == RunMode.AUTO)
         flowerServo.position = TRANSFER_CONFIG.FLOWER_UP
+
+    collector.startEvent += {
+        gameTimer.reset()
     }
 
     collector.gamepad.addGamepad1Listener(object : IGamepadListener {
@@ -111,13 +132,16 @@ fun attachTransfer(collector: Collector) {
             } else {
                 brushState = gamepadData.left_trigger > 0.01
 
-                if (gamepadData.right_trigger > 0.01)
+                if (gamepadData.right_trigger > 0.01 && (gameTimer.seconds() > 4.0 || turretConsumer()))
                     switchState(TransferState.SHUTTING)
                 else if (brushState)
                     switchState(TransferState.EAT)
                 else
                     switchState(TransferState.NONE)
             }
+
+            if (gamepadData.crossWasPressed())
+                flowerState = !flowerState
         }
     })
 
@@ -143,8 +167,8 @@ fun attachTransfer(collector: Collector) {
             TransferState.NONE -> {
                 transferMotor.power =
                     when (oldState) {
-                        TransferState.SHUTTING if stateTimer.seconds() < 0.05 -> -1.0
-                        TransferState.EAT if stateTimer.seconds() < 0.05 -> 1.0
+                        TransferState.SHUTTING if stateTimer.seconds() < TRANSFER_CONFIG.STOPPING_REVERSE_TIMER -> -1.0
+                        TransferState.EAT if stateTimer.seconds() < TRANSFER_CONFIG.STOPPING_FORWARD_TIMER -> 1.0
                         else
                             -> 0.0
                     }
@@ -153,6 +177,10 @@ fun attachTransfer(collector: Collector) {
             }
         }
 
-        brushMotor.power = if (brushState || collector.runMode == RunMode.AUTO) 1.0 else -TRANSFER_CONFIG.BRUSH_REVERSE_POWER
+        brushMotor.power =
+            if (brushState || collector.runMode == RunMode.AUTO) 1.0 else -TRANSFER_CONFIG.BRUSH_REVERSE_POWER
+
+        flowerServo.position =
+            if (flowerState) TRANSFER_CONFIG.FLOWER_DOWN else TRANSFER_CONFIG.FLOWER_UP
     }
 }

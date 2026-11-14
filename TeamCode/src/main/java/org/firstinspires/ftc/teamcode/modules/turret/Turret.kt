@@ -7,7 +7,9 @@ import com.qualcomm.robotcore.hardware.DcMotorEx
 import com.qualcomm.robotcore.hardware.PwmControl
 import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.hardware.ServoImplEx
+import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.collector.Collector
+import org.firstinspires.ftc.teamcode.collector.RunMode
 import org.firstinspires.ftc.teamcode.modules.driveTrain.GetOdometryConsumerEvent
 import org.firstinspires.ftc.teamcode.modules.utils.GamepadListener
 import org.firstinspires.ftc.teamcode.utils.motor.CachedMotor
@@ -16,6 +18,7 @@ import org.firstinspires.ftc.teamcode.utils.units.Ang
 import org.firstinspires.ftc.teamcode.utils.units.Vec
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.absoluteValue
 
 data class TurretRegulatorParams(
     @JvmField var p: Double,
@@ -85,31 +88,34 @@ internal object TURRET_CONFIG {
     var TURRET_SERVO_V_MAX = 4.0
 
     @JvmField
-    var SHOOT_POINT = Vec(10.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0)
+    var SHOOT_POINT = Vec(11.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0)
 
     @JvmField
-    var MIN_SHOOT_POINT = Vec(-1.091, -0.346)
+    var AUTO_SHOOT_POINT = Vec(11.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0)
 
     @JvmField
-    var MIN_PULLEY_VELOCITY = 1340.0
+    var MIN_SHOOT_POINT = Vec(-1.074, -0.241)
 
     @JvmField
-    var MIN_TURRET_ANGLE = 0.69
+    var MIN_PULLEY_VELOCITY = 1350.0
 
     @JvmField
-    var MAX_SHOOT_POINT = Vec(-1.512, -0.934)
+    var MIN_TURRET_ANGLE = 0.696
 
     @JvmField
-    var MAX_PULLEY_VELOCITY = 1420.0
+    var MAX_SHOOT_POINT = Vec(-1.468, -1.222)
 
     @JvmField
-    var MAX_TURRET_ANGLE = 0.965
+    var MAX_PULLEY_VELOCITY = 1450.0
 
     @JvmField
-    var MIN_TURRET_SERVO_ANGLE = 0.55
+    var MAX_TURRET_ANGLE = 0.95
 
     @JvmField
-    var MAX_TURRET_SERVO_ANGLE = 0.97
+    var MIN_TURRET_SERVO_ANGLE = 0.47
+
+    @JvmField
+    var MAX_TURRET_SERVO_ANGLE = 0.95
 
     @JvmField
     var PULLEY_VELOCITY_COMPENSATE_K = 0.0//2.1
@@ -119,7 +125,12 @@ internal object TURRET_CONFIG {
 
     @JvmField
     var HEADING_ANGULAR_VELOCITY_COMPENSATE_K = 0.0
+
+    @JvmField
+    var TURRET_AT_TARGET_SENS = 100.0
 }
+
+class GetTurretAtTargetConsumer(var consumer: () -> Boolean = {false})
 
 fun attachTurret(collector: Collector) {
     val motor = CachedMotor(collector.hardwareMap.get("turretMotor") as DcMotorEx)
@@ -130,8 +141,10 @@ fun attachTurret(collector: Collector) {
     motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
     motor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 
-    val minL = (TURRET_CONFIG.SHOOT_POINT * Vec(-1.0, 1.0) - TURRET_CONFIG.MIN_SHOOT_POINT).l()
-    val maxL = (TURRET_CONFIG.SHOOT_POINT * Vec(-1.0, 1.0) - TURRET_CONFIG.MAX_SHOOT_POINT).l()
+    val shootPoint = if(collector.runMode == RunMode.AUTO) TURRET_CONFIG.AUTO_SHOOT_POINT else TURRET_CONFIG.SHOOT_POINT
+
+    val minL = (shootPoint * Vec(-1.0, 1.0) - TURRET_CONFIG.MIN_SHOOT_POINT).l()
+    val maxL = (shootPoint * Vec(-1.0, 1.0) - TURRET_CONFIG.MAX_SHOOT_POINT).l()
 
     val rawTurretRotateServo = collector.hardwareMap.get("turretRotateServo") as Servo
 
@@ -140,6 +153,14 @@ fun attachTurret(collector: Collector) {
     val turretRotateServo = CachedServo(rawTurretRotateServo)
 
     val odometryConsumer = collector.eventBus(GetOdometryConsumerEvent()).consumer
+
+    val timer = ElapsedTime()
+
+    var turretAtTarget = false
+
+    collector.eventBus.sub(GetTurretAtTargetConsumer::class) {
+        it.consumer = { turretAtTarget }
+    }
 
     motor.setVelocityPIDFCoefficients(
         TURRET_CONFIG.REGULATOR.p,
@@ -189,17 +210,21 @@ fun attachTurret(collector: Collector) {
         shootOffsetRight = Vec.ZERO
     }))
 
+    collector.startEvent += {
+        timer.reset()
+    }
+
     collector.updateEvent += {
-        motor.setVelocityPIDFCoefficients(TURRET_CONFIG.REGULATOR.p, TURRET_CONFIG.REGULATOR.i, TURRET_CONFIG.REGULATOR.d, TURRET_CONFIG.REGULATOR.f)
+//        motor.setVelocityPIDFCoefficients(TURRET_CONFIG.REGULATOR.p, TURRET_CONFIG.REGULATOR.i, TURRET_CONFIG.REGULATOR.d, TURRET_CONFIG.REGULATOR.f)
 
 //        motor.velocity = TURRET_CONFIG.PULLEY_VELOCITY
-//
+
 //        turretAngleServo.position = clamp(TURRET_CONFIG.TURRET_ANGLE, TURRET_CONFIG.MIN_TURRET_SERVO_ANGLE,
 //            TURRET_CONFIG.MAX_TURRET_SERVO_ANGLE)
 
         val odometry = odometryConsumer()
 
-        val turretPulleyErr = (TURRET_CONFIG.SHOOT_POINT * Vec(
+        val turretPulleyErr = (shootPoint * Vec(
             if (odometry.pos.x > 0.0) 1.0 else -1.0,
             1.0
         ) + (if (odometry.pos.x < 0.0) shootOffsetLeft else shootOffsetRight) - odometry.linearVel.turn(
@@ -209,7 +234,7 @@ fun attachTurret(collector: Collector) {
         ).turn(odometry.pos.angle.angle))
 
 
-        val turretHeadingErr = (TURRET_CONFIG.SHOOT_POINT * Vec(
+        val turretHeadingErr = (shootPoint * Vec(
             if (odometry.pos.x > 0.0) 1.0 else -1.0,
             1.0
         ) + (if (odometry.pos.x < 0.0) shootOffsetLeft else shootOffsetRight) - odometry.linearVel.turn(
@@ -221,7 +246,7 @@ fun attachTurret(collector: Collector) {
         turretRotateServo.position = clamp(
             (odometry.pos.angle - Ang(turretHeadingErr.rot() - odometry.angularVel * TURRET_CONFIG.HEADING_ANGULAR_VELOCITY_COMPENSATE_K) + PI).angle + TURRET_CONFIG.TURRET_ROTATE_OFFSET,
             TURRET_CONFIG.TURRET_MIN_ROTATE.angle, TURRET_CONFIG.TURRET_MAX_ROTATE.angle
-        ) / TURRET_CONFIG.TURRET_SERVO_MAX_ANGLE + 0.478
+        ) / TURRET_CONFIG.TURRET_SERVO_MAX_ANGLE + 0.5
 
         var l = turretPulleyErr.l()
 
@@ -237,10 +262,13 @@ fun attachTurret(collector: Collector) {
             TURRET_CONFIG.MIN_TURRET_ANGLE + (TURRET_CONFIG.MAX_TURRET_ANGLE - TURRET_CONFIG.MIN_TURRET_ANGLE) * k
 
         motor.velocity = targetPulleyVelocity
+
         turretAngleServo.position = clamp(
             turretAngle, TURRET_CONFIG.MIN_TURRET_SERVO_ANGLE,
             TURRET_CONFIG.MAX_TURRET_SERVO_ANGLE
         )
+
+        turretAtTarget = (motor.velocity - targetPulleyVelocity).absoluteValue < TURRET_CONFIG.TURRET_AT_TARGET_SENS
 
         collector.telemetry.addData("target pulley velocity", TURRET_CONFIG.PULLEY_VELOCITY)
         collector.telemetry.addData("pulley velocity", motor.velocity)

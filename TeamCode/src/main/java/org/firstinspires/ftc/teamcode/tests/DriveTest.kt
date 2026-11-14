@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.tests
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp
 import com.qualcomm.robotcore.hardware.DcMotor
@@ -10,6 +11,7 @@ import org.firstinspires.ftc.teamcode.utils.units.Vec
 import kotlin.math.absoluteValue
 import kotlin.math.max
 
+@Disabled
 @TeleOp(group = "tests")
 class DriveTest : LinearOpMode() {
     override fun runOpMode() {

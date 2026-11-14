@@ -4,6 +4,9 @@ import org.firstinspires.ftc.teamcode.collector.Collector
 import org.firstinspires.ftc.teamcode.modules.actions.ActionLink
 import org.firstinspires.ftc.teamcode.modules.actions.ActionsBuilder
 import org.firstinspires.ftc.teamcode.modules.actions.DriveAction
+import org.firstinspires.ftc.teamcode.modules.actions.FlowerDownAction
+import org.firstinspires.ftc.teamcode.modules.actions.FlowerShootAction
+import org.firstinspires.ftc.teamcode.modules.actions.FlowerUpAction
 import org.firstinspires.ftc.teamcode.modules.actions.ShootAction
 import org.firstinspires.ftc.teamcode.modules.actions.StartEatAction
 import org.firstinspires.ftc.teamcode.modules.actions.StopEatAction
@@ -26,10 +29,16 @@ fun rightTrajectory(collector: Collector): ActionLink? {
         .next(DriveAction(bus, DriveSegment(Pos(Vec(1.546, -1.697), Ang.ofDeg(0.0)), linearVelConstrain = 1.0, angularVelConstrain = 1.0)))
         .next(WaitAction(1.0))
         .next(StopEatAction(bus))
-        .next(DriveAction(bus, DriveSegment(Pos(Vec(-1.398, -0.506), Ang.ofDeg(-180.0)))))
-        .next(WaitAction(1.0))
+        .next(DriveAction(bus, DriveSegment(Pos(Vec(-1.198, -0.606), Ang.ofDeg(-180.0)))))
+        .next(WaitAction(1.5))
         .next(ShootAction(bus))
+        .next(StartEatAction(bus))
+        .next(FlowerDownAction(bus))
+        .next(WaitAction(0.2))
+        .next(DriveAction(bus, DriveSegment(Pos(Vec(-1.918, -0.606), Ang.ofDeg(-180.0)), positionWindow = 1.0)))
+        .next(FlowerShootAction(bus))
         .next(DriveAction(bus, MoveSegment(Vec(-0.895, -1.529))))
+        .next(FlowerUpAction(bus))
 
     return builder.build()
 }

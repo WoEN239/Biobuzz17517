@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.modules.actions
 
+import com.acmerobotics.dashboard.config.Config
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.modules.driveTrain.DriveSegment
 import org.firstinspires.ftc.teamcode.modules.driveTrain.GetRunnerAtTargetAngleEvent
@@ -8,11 +9,24 @@ import org.firstinspires.ftc.teamcode.modules.driveTrain.ITrajectorySegment
 import org.firstinspires.ftc.teamcode.modules.driveTrain.MoveSegment
 import org.firstinspires.ftc.teamcode.modules.driveTrain.RunSegmentEvent
 import org.firstinspires.ftc.teamcode.modules.driveTrain.TurnSegment
+import org.firstinspires.ftc.teamcode.modules.transfer.SwitchFlowerStateEvent
 import org.firstinspires.ftc.teamcode.modules.transfer.SwitchTransferStateEvent
 import org.firstinspires.ftc.teamcode.modules.transfer.TRANSFER_CONFIG
 import org.firstinspires.ftc.teamcode.modules.transfer.TransferState
 import org.firstinspires.ftc.teamcode.utils.events.EventBus
 import java.util.LinkedList
+
+@Config
+internal object ACTIONS_CONFIG {
+    @JvmField
+    var FLOWER_SHOOT_TIMER = 4.0
+
+    @JvmField
+    var FLOWER_SHOOT_REVERS_TIMER = 0.5
+
+    @JvmField
+    var FLOWER_SECONDARY_SHOOT_TIMER = 1.0
+}
 
 interface IAction {
     fun start() {}
@@ -158,7 +172,7 @@ class DriveAction(val eventBus: EventBus, vararg segments: ITrajectorySegment) :
     override fun isEnd() = segmentsCopy!!.isEmpty()
 }
 
-class ShootAction(val eventBus: EventBus): IAction {
+class ShootAction(val eventBus: EventBus) : IAction {
     val timer = ElapsedTime()
 
     override fun start() {
@@ -174,14 +188,60 @@ class ShootAction(val eventBus: EventBus): IAction {
     override fun isEnd() = timer.seconds() > TRANSFER_CONFIG.SHOOT_TIME
 }
 
-class StartEatAction(val eventBus: EventBus): IAction {
+class FlowerShootAction(val eventBus: EventBus) : IAction {
+    var state = 0
+    val timer = ElapsedTime()
+
+    override fun start() {
+        timer.reset()
+
+        state = 0
+
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.SHUTTING))
+    }
+
+    override fun update() {
+        if (state == 0 && timer.seconds() > ACTIONS_CONFIG.FLOWER_SHOOT_TIMER) {
+            state = 1
+
+            eventBus.invoke(SwitchTransferStateEvent(TransferState.REVERSE))
+        }
+
+        if (state == 1 && timer.seconds() > ACTIONS_CONFIG.FLOWER_SHOOT_TIMER + ACTIONS_CONFIG.FLOWER_SHOOT_REVERS_TIMER) {
+            eventBus.invoke(SwitchTransferStateEvent(TransferState.SHUTTING))
+            state = 2
+        }
+    }
+
+    override fun stop(force: Boolean) {
+        eventBus.invoke(SwitchTransferStateEvent(TransferState.NONE))
+    }
+
+    override fun isEnd() =
+        state == 2 && timer.seconds() > ACTIONS_CONFIG.FLOWER_SHOOT_TIMER + ACTIONS_CONFIG.FLOWER_SHOOT_REVERS_TIMER + ACTIONS_CONFIG.FLOWER_SECONDARY_SHOOT_TIMER
+}
+
+class StartEatAction(val eventBus: EventBus) : IAction {
     override fun start() {
         eventBus.invoke(SwitchTransferStateEvent(TransferState.EAT))
     }
 }
 
-class StopEatAction(val eventBus: EventBus): IAction {
+class StopEatAction(val eventBus: EventBus) : IAction {
     override fun start() {
         eventBus.invoke(SwitchTransferStateEvent(TransferState.NONE))
+    }
+}
+
+class FlowerDownAction(val eventBus: EventBus) : IAction {
+    override fun start() {
+        eventBus.invoke(SwitchFlowerStateEvent(true))
+    }
+}
+
+
+class FlowerUpAction(val eventBus: EventBus) : IAction {
+    override fun start() {
+        eventBus.invoke(SwitchFlowerStateEvent(false))
     }
 }
