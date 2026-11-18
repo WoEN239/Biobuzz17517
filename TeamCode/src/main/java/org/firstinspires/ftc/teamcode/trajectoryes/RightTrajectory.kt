@@ -26,7 +26,7 @@ fun rightTrajectory(collector: Collector): ActionLink? {
         .next(ShootAction(bus))
         .next(DriveAction(bus, DriveSegment(Pos(Vec(1.466, -1.126), Ang.ofDeg(-47.0)))))
         .next(StartEatAction(bus))
-        .next(DriveAction(bus, DriveSegment(Pos(Vec(1.546, -1.697), Ang.ofDeg(0.0)), linearVelConstrain = 1.0, angularVelConstrain = 1.0)))
+        .next(DriveAction(bus, DriveSegment(Pos(Vec(1.546, -1.757), Ang.ofDeg(0.0)), linearVelConstrain = 1.0, angularVelConstrain = 1.0)))
         .next(WaitAction(1.0))
         .next(StopEatAction(bus))
         .next(DriveAction(bus, DriveSegment(Pos(Vec(-1.198, -0.606), Ang.ofDeg(-180.0)))))
