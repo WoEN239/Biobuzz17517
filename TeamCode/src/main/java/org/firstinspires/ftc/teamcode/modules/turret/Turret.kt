@@ -9,16 +9,19 @@ import com.qualcomm.robotcore.hardware.Servo
 import com.qualcomm.robotcore.hardware.ServoImplEx
 import com.qualcomm.robotcore.util.ElapsedTime
 import org.firstinspires.ftc.teamcode.collector.Collector
-import org.firstinspires.ftc.teamcode.collector.RunMode
 import org.firstinspires.ftc.teamcode.modules.driveTrain.GetOdometryConsumerEvent
 import org.firstinspires.ftc.teamcode.modules.utils.GamepadListener
 import org.firstinspires.ftc.teamcode.utils.motor.CachedMotor
 import org.firstinspires.ftc.teamcode.utils.motor.CachedServo
 import org.firstinspires.ftc.teamcode.utils.units.Ang
+import org.firstinspires.ftc.teamcode.utils.units.Color
 import org.firstinspires.ftc.teamcode.utils.units.Vec
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.absoluteValue
+import kotlin.math.atan2
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 data class TurretRegulatorParams(
     @JvmField var p: Double,
@@ -67,70 +70,64 @@ internal object TURRET_CONFIG {
     var TURRET_ANGLE = 0.5
 
     @JvmField
-    var TURRET_ROTATE_OFFSET = 0.0
+    var CENTER_POS = -0.02067
 
     @JvmField
-    var TURRET_CENTER_POS = -0.02067
+    var MIN_ROTATE = Ang.ofDeg(-90.0)
 
     @JvmField
-    var TURRET_MIN_ROTATE = Ang.ofDeg(-90.0)
+    var MAX_ROTATE = Ang.ofDeg(90.0)
 
     @JvmField
-    var TURRET_MAX_ROTATE = Ang.ofDeg(90.0)
+    var ROTATE_SERVO_MAX_ANGLE = PI * 1.5
 
     @JvmField
-    var TURRET_SERVO_MAX_ANGLE = PI * 1.5
+    var SHOOT_POINT = Vec(11.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0 - 0.05)
 
     @JvmField
-    var TURRET_SERVO_A = 9.0
+    var SERVO_MIN_ANGLE = 0.55
 
     @JvmField
-    var TURRET_SERVO_V_MAX = 4.0
+    var SERVO_MAX_ANGLE = 0.96
 
     @JvmField
-    var SHOOT_POINT = Vec(11.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0)
+    var PULLEY_AT_TARGET_SENS = 100.0
 
     @JvmField
-    var AUTO_SHOOT_POINT = Vec(11.0 * 2.54 / 100.0, -12.0 * 2.54 / 100.0)
+    var TURRET_POINTS = listOf(
+//        TurretPoint(1.916, 1530.0, 0.96,)
+        TurretPoint(0.828, 1360.0, 0.7, 8.93 - 8.15),
+        TurretPoint(1.050, 1380.0, 0.78, 5.25 - 4.55),
+        TurretPoint(1.524, 1460.0, 0.97, 3.82 - 3.15)
+    )
 
     @JvmField
-    var MIN_SHOOT_POINT = Vec(-1.074, -0.241)
+    var PULLEY_VELOCITY_COMPENSATE_K = 0.0//1.0
 
     @JvmField
-    var MIN_PULLEY_VELOCITY = 1350.0
+    var CALCULATE_STEPS = 4
 
     @JvmField
-    var MIN_TURRET_ANGLE = 0.696
+    var HEADING_ANGULAR_VELOCITY_COMPENSATE_K = 0.12
 
     @JvmField
-    var MAX_SHOOT_POINT = Vec(-1.468, -1.222)
+    var HEADING_FEED_FORWARD = 10.0
 
     @JvmField
-    var MAX_PULLEY_VELOCITY = 1450.0
+    var HIVE_FACE_POINT = Vec(0.45, -12.0 * 2.54 / 100.0 - 0.05)
 
     @JvmField
-    var MAX_TURRET_ANGLE = 0.95
-
-    @JvmField
-    var MIN_TURRET_SERVO_ANGLE = 0.47
-
-    @JvmField
-    var MAX_TURRET_SERVO_ANGLE = 0.95
-
-    @JvmField
-    var PULLEY_VELOCITY_COMPENSATE_K = 1.2//2.1
-
-    @JvmField
-    var HEADING_LINEAR_VELOCITY_COMPENSATE_K = 0.6//0.71
-
-    @JvmField
-    var HEADING_ANGULAR_VELOCITY_COMPENSATE_K = 0.0
-
-    @JvmField
-    var TURRET_AT_TARGET_SENS = 100.0
+    var HIVE_FACE_OFFSET = 0.535 / 2.0
 }
 
-class GetTurretAtTargetConsumer(var consumer: () -> Boolean = {false})
+class TurretPoint(
+    @JvmField val l: Double,
+    @JvmField val velocity: Double,
+    @JvmField val angle: Double,
+    @JvmField val time: Double
+)
+
+class GetTurretAtTargetConsumer(var consumer: () -> Boolean = { false })
 
 fun attachTurret(collector: Collector) {
     val motor = CachedMotor(collector.hardwareMap.get("turretMotor") as DcMotorEx)
@@ -141,11 +138,6 @@ fun attachTurret(collector: Collector) {
     motor.mode = DcMotor.RunMode.RUN_USING_ENCODER
     motor.zeroPowerBehavior = DcMotor.ZeroPowerBehavior.BRAKE
 
-    val shootPoint = if(collector.runMode == RunMode.AUTO) TURRET_CONFIG.AUTO_SHOOT_POINT else TURRET_CONFIG.SHOOT_POINT
-
-    val minL = (shootPoint * Vec(-1.0, 1.0) - TURRET_CONFIG.MIN_SHOOT_POINT).l()
-    val maxL = (shootPoint * Vec(-1.0, 1.0) - TURRET_CONFIG.MAX_SHOOT_POINT).l()
-
     val rawTurretRotateServo = collector.hardwareMap.get("turretRotateServo") as Servo
 
     (rawTurretRotateServo as ServoImplEx).pwmRange = PwmControl.PwmRange(500.0, 2500.0)
@@ -154,9 +146,10 @@ fun attachTurret(collector: Collector) {
 
     val odometryConsumer = collector.eventBus(GetOdometryConsumerEvent()).consumer
 
-    val timer = ElapsedTime()
-
     var turretAtTarget = false
+    var turretOldRotate: Ang? = null
+
+    val deltaTime = ElapsedTime()
 
     collector.eventBus.sub(GetTurretAtTargetConsumer::class) {
         it.consumer = { turretAtTarget }
@@ -211,66 +204,135 @@ fun attachTurret(collector: Collector) {
     }))
 
     collector.startEvent += {
-        timer.reset()
+        deltaTime.reset()
     }
 
     collector.updateEvent += {
 //        motor.setVelocityPIDFCoefficients(TURRET_CONFIG.REGULATOR.p, TURRET_CONFIG.REGULATOR.i, TURRET_CONFIG.REGULATOR.d, TURRET_CONFIG.REGULATOR.f)
 
 //        motor.velocity = TURRET_CONFIG.PULLEY_VELOCITY
+//
+//        turretAngleServo.position = clamp(TURRET_CONFIG.TURRET_ANGLE, TURRET_CONFIG.SERVO_MIN_ANGLE,
+//            TURRET_CONFIG.SERVO_MAX_ANGLE)
 
-//        turretAngleServo.position = clamp(TURRET_CONFIG.TURRET_ANGLE, TURRET_CONFIG.MIN_TURRET_SERVO_ANGLE,
-//            TURRET_CONFIG.MAX_TURRET_SERVO_ANGLE)
+        val dt = deltaTime.seconds()
+        deltaTime.reset()
 
         val odometry = odometryConsumer()
 
-        val turretPulleyErr = (shootPoint * Vec(
-            if (odometry.pos.x > 0.0) 1.0 else -1.0,
-            1.0
-        ) + (if (odometry.pos.x < 0.0) shootOffsetLeft else shootOffsetRight) - odometry.linearVel.turn(
-            odometry.pos.angle()
-        ) * TURRET_CONFIG.PULLEY_VELOCITY_COMPENSATE_K) - (odometry.pos.vec + Vec(
-            TURRET_CONFIG.TURRET_CENTER_POS, 0.0
-        ).turn(odometry.pos.angle.angle))
+        val robotPoint = odometry.pos.vec + Vec(TURRET_CONFIG.CENTER_POS, 0.0)
+            .turn(odometry.pos.angle.angle)// A
 
+        val shootGamepadOffset = if (robotPoint.x < 0.0) shootOffsetLeft else shootOffsetRight
+        val shootSideMultiplier = Vec(if (robotPoint.x > 0.0) 1.0 else -1.0, 1.0)
 
-        val turretHeadingErr = (shootPoint * Vec(
-            if (odometry.pos.x > 0.0) 1.0 else -1.0,
-            1.0
-        ) + (if (odometry.pos.x < 0.0) shootOffsetLeft else shootOffsetRight) - odometry.linearVel.turn(
-            odometry.pos.angle()
-        ) * TURRET_CONFIG.HEADING_LINEAR_VELOCITY_COMPENSATE_K) - (odometry.pos.vec + Vec(
-            TURRET_CONFIG.TURRET_CENTER_POS, 0.0
-        ).turn(odometry.pos.angle.angle))
+        val aimPoint = TURRET_CONFIG.SHOOT_POINT * shootSideMultiplier + shootGamepadOffset // B
 
-        turretRotateServo.position = clamp(
-            (odometry.pos.angle - Ang(turretHeadingErr.rot() - odometry.angularVel * TURRET_CONFIG.HEADING_ANGULAR_VELOCITY_COMPENSATE_K) + PI).angle + TURRET_CONFIG.TURRET_ROTATE_OFFSET,
-            TURRET_CONFIG.TURRET_MIN_ROTATE.angle, TURRET_CONFIG.TURRET_MAX_ROTATE.angle
-        ) / TURRET_CONFIG.TURRET_SERVO_MAX_ANGLE + 0.5
+        val hiveFacePoint =
+            TURRET_CONFIG.HIVE_FACE_POINT * shootSideMultiplier +
+                    shootGamepadOffset +
+                    Vec(
+                        0.0, if (robotPoint.y > aimPoint.y)
+                            TURRET_CONFIG.HIVE_FACE_OFFSET else -TURRET_CONFIG.HIVE_FACE_OFFSET
+                    ) // C
 
-        var l = turretPulleyErr.l()
+        collector.telemetry.drawCircle(aimPoint, 0.1, Color.RED)
+        collector.telemetry.drawCircle(hiveFacePoint, 0.1, Color.BLACK)
 
-        collector.telemetry.addData("turret raw l", l)
+        val alpha = (Ang((robotPoint - hiveFacePoint).rot()) - Ang((robotPoint - aimPoint).rot())) *
+                (if (robotPoint.y > aimPoint.y) 1.0 else -1.0) * -shootSideMultiplier.x
 
-        l = clamp(l, minL, maxL)
+        val shootOffset = if(alpha.angle > 0.0) {{ 0.0 }}
+        else
+        {{
+            val a = robotPoint.x - hiveFacePoint.x
+            val c = robotPoint.y - hiveFacePoint.y
 
-        val k = (l - minL) / (maxL - minL)
+            val k = (if(c.absoluteValue < 0.01) c + 0.01 else c) / (if(a.absoluteValue < 0.01) a + 0.01 else a)
+            val b = hiveFacePoint.y - k * hiveFacePoint.x
 
-        val targetPulleyVelocity =
-            TURRET_CONFIG.MIN_PULLEY_VELOCITY + (TURRET_CONFIG.MAX_PULLEY_VELOCITY - TURRET_CONFIG.MIN_PULLEY_VELOCITY) * k
-        val turretAngle =
-            TURRET_CONFIG.MIN_TURRET_ANGLE + (TURRET_CONFIG.MAX_TURRET_ANGLE - TURRET_CONFIG.MIN_TURRET_ANGLE) * k
+            clamp(abs(aimPoint.x - (aimPoint.y - b) / k), 0.0, TURRET_CONFIG.HIVE_FACE_POINT.x - TURRET_CONFIG.SHOOT_POINT.x)
+        }}
+
+        val shootPoint = aimPoint + Vec(shootOffset(), 0.0) * shootSideMultiplier
+
+        collector.telemetry.drawCircle(shootPoint, 0.1, Color.GREEN)
+
+        val globalRobotVelocity = odometry.linearVel.turn(odometry.pos.angle())
+
+        val turretPulleyErr = shootPoint -
+                (odometry.pos.vec +
+                        Vec(TURRET_CONFIG.CENTER_POS, 0.0)
+                            .turn(odometry.pos.angle.angle))
+
+        fun calcPont(l: Double): TurretPoint {
+            val points = TURRET_CONFIG.TURRET_POINTS
+
+            var firstIndex = 0
+
+            for (i in 1..<points.size - 1) {
+                if (points[i].l > l)
+                    break
+
+                firstIndex = i
+            }
+
+            val min = points[firstIndex]
+            val max = points[firstIndex + 1]
+
+            val k = (l - min.l) / (max.l - min.l)
+
+            return TurretPoint(
+                l,
+                min.velocity + (max.velocity - min.velocity) * k,
+                min.angle + (max.angle - min.angle) * k,
+                min.time + (max.time - min.time)
+            )
+        }
+
+        val rawL = turretPulleyErr.l()
+        val l =
+            clamp(rawL, TURRET_CONFIG.TURRET_POINTS.first().l, TURRET_CONFIG.TURRET_POINTS.last().l)
+
+        val dream = calcPont(l)
+
+        val dreamShootPoint =
+            globalRobotVelocity * -TURRET_CONFIG.PULLEY_VELOCITY_COMPENSATE_K * dream.time + shootPoint
+
+        val dreamErr = dreamShootPoint -
+                (odometry.pos.vec +
+                        Vec(TURRET_CONFIG.CENTER_POS, 0.0)
+                            .turn(odometry.pos.angle.angle))
+
+        val calc = calcPont(dreamErr.l())
+
+        val targetPulleyVelocity = calc.velocity
+        val targetTurretAngle = calc.angle
+
+        turretAngleServo.position = clamp(
+            targetTurretAngle,
+            TURRET_CONFIG.SERVO_MIN_ANGLE,
+            TURRET_CONFIG.SERVO_MAX_ANGLE
+        )
 
         motor.velocity = targetPulleyVelocity
 
-        turretAngleServo.position = clamp(
-            turretAngle, TURRET_CONFIG.MIN_TURRET_SERVO_ANGLE,
-            TURRET_CONFIG.MAX_TURRET_SERVO_ANGLE
-        )
+        turretAtTarget =
+            (motor.velocity - targetPulleyVelocity).absoluteValue < TURRET_CONFIG.PULLEY_AT_TARGET_SENS
 
-        turretAtTarget = (motor.velocity - targetPulleyVelocity).absoluteValue < TURRET_CONFIG.TURRET_AT_TARGET_SENS
+        val turretRotate = Ang(dreamErr.rot())
 
-        collector.telemetry.addData("target pulley velocity", TURRET_CONFIG.PULLEY_VELOCITY)
+        turretRotateServo.position = clamp(
+            (odometry.pos.angle - turretRotate + PI).angle +
+                    odometry.angularVel * TURRET_CONFIG.HEADING_ANGULAR_VELOCITY_COMPENSATE_K +
+                    if (turretOldRotate != null) (turretRotate - turretOldRotate!!).angle * -TURRET_CONFIG.HEADING_FEED_FORWARD * dt else 0.0,
+            TURRET_CONFIG.MIN_ROTATE.angle, TURRET_CONFIG.MAX_ROTATE.angle
+        ) / TURRET_CONFIG.ROTATE_SERVO_MAX_ANGLE + 0.5
+
+        turretOldRotate = turretRotate
+
+        collector.telemetry.addData("raw turret l", rawL)
+        collector.telemetry.addData("target pulley velocity", targetPulleyVelocity)
         collector.telemetry.addData("pulley velocity", motor.velocity)
     }
 }

@@ -118,12 +118,12 @@ fun attachOdometry(collector: Collector) {
 
         odometryJob = scope.launch { updateOdometry() }
 
-//        collector.telemetry.drawRect(
-//            atomicOdometry.pos.vec,
-//            ODOMETRY_CONFIG.ROBOT_SIZE,
-//            atomicOdometry.pos.angle(),
-//            Color.ORANGE
-//        )
+        collector.telemetry.drawRect(
+            atomicOdometry.pos.vec,
+            ODOMETRY_CONFIG.ROBOT_SIZE,
+            atomicOdometry.pos.angle(),
+            Color.ORANGE
+        )
         collector.telemetry.addData("robot pos", atomicOdometry.pos)
 
         collector.telemetry.addData("robot vel x", atomicOdometry.linearVel.x)
