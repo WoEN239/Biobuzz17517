@@ -29,13 +29,13 @@ internal object RUNNER_CONFIG {
     var ANGULAR_SENTRY_TIMER = 5.0
 
     @JvmField
-    var X_REGULATOR = RegParams(kP = 2.0, kD = 0.1)
+    var X_REGULATOR = RegParams(kP = 1.7, kD = 0.0)
 
     @JvmField
-    var Y_REGULATOR = RegParams(kP = 2.0, kD = 0.1)
+    var Y_REGULATOR = RegParams(kP = 1.7, kD = 0.0)
 
     @JvmField
-    var H_REGULATOR = RegParams(kP = 9.0, kD = 0.3)
+    var H_REGULATOR = RegParams(kP = 8.5, kD = 0.2)
 
     @JvmField
     var TARGET_TIMER = 0.01

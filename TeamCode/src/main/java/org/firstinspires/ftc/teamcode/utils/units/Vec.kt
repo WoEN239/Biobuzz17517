@@ -7,7 +7,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
-data class Vec(@JvmField val x: Double, @JvmField val y: Double) {
+data class Vec(@JvmField var x: Double, @JvmField var y: Double) {
     companion object {
         val ZERO
             get() = Vec(0.0, 0.0)

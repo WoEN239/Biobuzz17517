@@ -94,11 +94,12 @@ internal object TURRET_CONFIG {
     var PULLEY_AT_TARGET_SENS = 100.0
 
     @JvmField
-    var TURRET_POINTS = listOf(
+    var TURRET_POINTS = arrayListOf(
 //        TurretPoint(1.916, 1530.0, 0.96,)
-        TurretPoint(0.828, 1360.0, 0.7, 8.93 - 8.15),
-        TurretPoint(1.050, 1380.0, 0.78, 5.25 - 4.55),
-        TurretPoint(1.524, 1460.0, 0.97, 3.82 - 3.15)
+        TurretPoint(0.84, 1360.0, 0.72, 1.0),
+        TurretPoint(1.207, 1400.0, 0.87, 1.0),
+//        TurretPoint(1.45, 1420.0, 0.88, 1.0),
+        TurretPoint(2.148, 1580.0, 0.96, 1.0)
     )
 
     @JvmField
@@ -114,10 +115,13 @@ internal object TURRET_CONFIG {
     var HEADING_FEED_FORWARD = 10.0
 
     @JvmField
-    var HIVE_FACE_POINT = Vec(0.45, -12.0 * 2.54 / 100.0 - 0.05)
+    var PULLEY_FEED_FORWARD = 10.0
 
     @JvmField
-    var HIVE_FACE_OFFSET = 0.535 / 2.0
+    var HIVE_FACE_POINT = Vec(0.53, -12.0 * 2.54 / 100.0 - 0.05)
+
+    @JvmField
+    var HIVE_FACE_OFFSET = 0.17
 }
 
 class TurretPoint(
@@ -148,6 +152,8 @@ fun attachTurret(collector: Collector) {
 
     var turretAtTarget = false
     var turretOldRotate: Ang? = null
+
+    var turretOldL: Double? = null
 
     val deltaTime = ElapsedTime()
 
@@ -208,62 +214,103 @@ fun attachTurret(collector: Collector) {
     }
 
     collector.updateEvent += {
-//        motor.setVelocityPIDFCoefficients(TURRET_CONFIG.REGULATOR.p, TURRET_CONFIG.REGULATOR.i, TURRET_CONFIG.REGULATOR.d, TURRET_CONFIG.REGULATOR.f)
+//        motor.setVelocityPIDFCoefficients(
+//            TURRET_CONFIG.REGULATOR.p,
+//            TURRET_CONFIG.REGULATOR.i,
+//            TURRET_CONFIG.REGULATOR.d,
+//            TURRET_CONFIG.REGULATOR.f
+//        )
 
 //        motor.velocity = TURRET_CONFIG.PULLEY_VELOCITY
-//
-//        turretAngleServo.position = clamp(TURRET_CONFIG.TURRET_ANGLE, TURRET_CONFIG.SERVO_MIN_ANGLE,
-//            TURRET_CONFIG.SERVO_MAX_ANGLE)
+
+//        turretAngleServo.position = clamp(
+//            TURRET_CONFIG.TURRET_ANGLE, TURRET_CONFIG.SERVO_MIN_ANGLE,
+//            TURRET_CONFIG.SERVO_MAX_ANGLE
+//        )
 
         val dt = deltaTime.seconds()
         deltaTime.reset()
 
         val odometry = odometryConsumer()
 
-        val robotPoint = odometry.pos.vec + Vec(TURRET_CONFIG.CENTER_POS, 0.0)
-            .turn(odometry.pos.angle.angle)// A
+        val turretPoint = odometry.pos.vec + Vec(TURRET_CONFIG.CENTER_POS, 0.0)
+            .turn(odometry.pos.angle.angle)
 
-        val shootGamepadOffset = if (robotPoint.x < 0.0) shootOffsetLeft else shootOffsetRight
-        val shootSideMultiplier = Vec(if (robotPoint.x > 0.0) 1.0 else -1.0, 1.0)
+        val shootGamepadOffset = if (turretPoint.x < 0.0) shootOffsetLeft else shootOffsetRight
+        val shootSideMultiplier = Vec(if (turretPoint.x > 0.0) 1.0 else -1.0, 1.0)
 
-        val aimPoint = TURRET_CONFIG.SHOOT_POINT * shootSideMultiplier + shootGamepadOffset // B
+        val aimPoint = TURRET_CONFIG.SHOOT_POINT * shootSideMultiplier + shootGamepadOffset
 
-        val hiveFacePoint =
-            TURRET_CONFIG.HIVE_FACE_POINT * shootSideMultiplier +
-                    shootGamepadOffset +
+        val hiveFaceOffset = Vec(
+            0.0, if (turretPoint.y > aimPoint.y)
+                TURRET_CONFIG.HIVE_FACE_OFFSET else -TURRET_CONFIG.HIVE_FACE_OFFSET
+        )
+
+        val hiveFaceCenter = TURRET_CONFIG.HIVE_FACE_POINT * shootSideMultiplier + shootGamepadOffset
+
+        val hiveFacePoint = hiveFaceCenter + hiveFaceOffset
+
+        collector.telemetry.drawCircle(aimPoint, 0.05, Color.RED)
+        collector.telemetry.drawCircle(hiveFacePoint, 0.05, Color.BLACK)
+        collector.telemetry.drawCircle(turretPoint, 0.05, Color.GREEN)
+
+        val alpha =
+            (Ang((turretPoint - hiveFacePoint).rot()) - Ang((turretPoint - aimPoint).rot())) *
+                    (if (turretPoint.y > aimPoint.y) 1.0 else -1.0) * -shootSideMultiplier.x
+
+        val shootPoint = (if (alpha.angle > 0.0) {
+            { aimPoint }
+        } else {
+            {
+                fun getIntersection(p1: Vec, p2: Vec, p3: Vec, p4: Vec): Vec {
+                    var delta = (p2.x - p1.x) * (p4.y - p3.y) - (p2.y - p1.y) * (p4.x - p3.x)
+
+                    if (delta.absoluteValue < 0.0001)
+                        delta += 0.0001
+
+                    val t = ((p3.x - p1.x) * (p4.y - p3.y) - (p3.y - p1.y) * (p4.x - p3.x)) / delta
+
+                    return Vec(p1.x + t * (p2.x - p1.x), p1.y + t * (p2.y - p1.y))
+                }
+
+                val i1 =
+                    getIntersection(turretPoint, hiveFacePoint, aimPoint, aimPoint - hiveFaceOffset)
+                val i2 = getIntersection(
+                    turretPoint,
+                    hiveFacePoint,
+                    aimPoint - hiveFaceOffset,
+                    hiveFaceCenter - hiveFaceOffset
+                )
+
+                val p =
+                    if ((i1.x >= i2.x && turretPoint.x < 0) || (i1.x <= i2.x && turretPoint.x > 0)) i2 else i1
+
+                if (turretPoint.x > 0.0)
                     Vec(
-                        0.0, if (robotPoint.y > aimPoint.y)
-                            TURRET_CONFIG.HIVE_FACE_OFFSET else -TURRET_CONFIG.HIVE_FACE_OFFSET
-                    ) // C
+                        clamp(p.x, aimPoint.x, hiveFaceCenter.x),
+                        clamp(
+                            p.y,
+                            hiveFaceCenter.y - TURRET_CONFIG.HIVE_FACE_OFFSET,
+                            hiveFaceCenter.y + TURRET_CONFIG.HIVE_FACE_OFFSET
+                        )
+                    )
+                else
+                    Vec(
+                        clamp(p.x, hiveFaceCenter.x, aimPoint.x),
+                        clamp(
+                            p.y,
+                            hiveFaceCenter.y - TURRET_CONFIG.HIVE_FACE_OFFSET,
+                            hiveFaceCenter.y + TURRET_CONFIG.HIVE_FACE_OFFSET
+                        )
+                    )
+            }
+        })()
 
-        collector.telemetry.drawCircle(aimPoint, 0.1, Color.RED)
-        collector.telemetry.drawCircle(hiveFacePoint, 0.1, Color.BLACK)
-
-        val alpha = (Ang((robotPoint - hiveFacePoint).rot()) - Ang((robotPoint - aimPoint).rot())) *
-                (if (robotPoint.y > aimPoint.y) 1.0 else -1.0) * -shootSideMultiplier.x
-
-        val shootOffset = if(alpha.angle > 0.0) {{ 0.0 }}
-        else
-        {{
-            val a = robotPoint.x - hiveFacePoint.x
-            val c = robotPoint.y - hiveFacePoint.y
-
-            val k = (if(c.absoluteValue < 0.01) c + 0.01 else c) / (if(a.absoluteValue < 0.01) a + 0.01 else a)
-            val b = hiveFacePoint.y - k * hiveFacePoint.x
-
-            clamp(abs(aimPoint.x - (aimPoint.y - b) / k), 0.0, TURRET_CONFIG.HIVE_FACE_POINT.x - TURRET_CONFIG.SHOOT_POINT.x)
-        }}
-
-        val shootPoint = aimPoint + Vec(shootOffset(), 0.0) * shootSideMultiplier
-
-        collector.telemetry.drawCircle(shootPoint, 0.1, Color.GREEN)
+        collector.telemetry.drawCircle(shootPoint, 0.05, Color.GREEN)
 
         val globalRobotVelocity = odometry.linearVel.turn(odometry.pos.angle())
 
-        val turretPulleyErr = shootPoint -
-                (odometry.pos.vec +
-                        Vec(TURRET_CONFIG.CENTER_POS, 0.0)
-                            .turn(odometry.pos.angle.angle))
+        val turretPulleyErr = shootPoint - turretPoint
 
         fun calcPont(l: Double): TurretPoint {
             val points = TURRET_CONFIG.TURRET_POINTS
@@ -299,10 +346,7 @@ fun attachTurret(collector: Collector) {
         val dreamShootPoint =
             globalRobotVelocity * -TURRET_CONFIG.PULLEY_VELOCITY_COMPENSATE_K * dream.time + shootPoint
 
-        val dreamErr = dreamShootPoint -
-                (odometry.pos.vec +
-                        Vec(TURRET_CONFIG.CENTER_POS, 0.0)
-                            .turn(odometry.pos.angle.angle))
+        val dreamErr = dreamShootPoint - turretPoint
 
         val calc = calcPont(dreamErr.l())
 
@@ -327,12 +371,12 @@ fun attachTurret(collector: Collector) {
                     odometry.angularVel * TURRET_CONFIG.HEADING_ANGULAR_VELOCITY_COMPENSATE_K +
                     if (turretOldRotate != null) (turretRotate - turretOldRotate!!).angle * -TURRET_CONFIG.HEADING_FEED_FORWARD * dt else 0.0,
             TURRET_CONFIG.MIN_ROTATE.angle, TURRET_CONFIG.MAX_ROTATE.angle
-        ) / TURRET_CONFIG.ROTATE_SERVO_MAX_ANGLE + 0.5
+        ) / TURRET_CONFIG.ROTATE_SERVO_MAX_ANGLE + 0.56
 
         turretOldRotate = turretRotate
 
         collector.telemetry.addData("raw turret l", rawL)
-        collector.telemetry.addData("target pulley velocity", targetPulleyVelocity)
+        collector.telemetry.addData("target pulley velocity", TURRET_CONFIG.PULLEY_VELOCITY)
         collector.telemetry.addData("pulley velocity", motor.velocity)
     }
 }

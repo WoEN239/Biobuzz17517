@@ -40,10 +40,10 @@ internal object TRANSFER_CONFIG {
     var SHOOT_TIMER = 0.1
 
     @JvmField
-    var FLOWER_UP = 0.4
+    var FLOWER_UP = 0.43
 
     @JvmField
-    var FLOWER_DOWN = 0.735
+    var FLOWER_DOWN = 0.78
 
     @JvmField
     var SHOOT_TIME = 1.5

@@ -20,7 +20,7 @@ internal object TURRET_ROTATE_TEST_CONFIG {
 }
 
 @TeleOp(group = "tests")
-@Disabled
+//@Disabled
 class TurretRotateTest: LinearOpMode() {
     override fun runOpMode() {
 

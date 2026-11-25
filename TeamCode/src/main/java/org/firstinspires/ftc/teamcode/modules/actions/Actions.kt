@@ -19,7 +19,7 @@ import java.util.LinkedList
 @Config
 internal object ACTIONS_CONFIG {
     @JvmField
-    var FLOWER_SHOOT_TIMER = 4.0
+    var FLOWER_SHOOT_TIMER = 2.0
 
     @JvmField
     var FLOWER_SHOOT_REVERS_TIMER = 0.5
